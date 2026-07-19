@@ -125,11 +125,7 @@ pub fn build_portfolio(
             .iter()
             .map(|reference| PortfolioConflict {
                 reference: reference.name.clone(),
-                report: analyze_trademark_risk(
-                    &candidate.name,
-                    &reference.name,
-                    reference.context,
-                ),
+                report: analyze_trademark_risk(&candidate.name, &reference.name, reference.context),
             })
             .collect::<Vec<_>>();
 
@@ -164,8 +160,7 @@ pub fn build_portfolio(
             ));
         } else {
             explanations.push(format!(
-                "highest trademark screening result is {:?} with score {}",
-                maximum_risk, maximum_risk_score
+                "highest trademark screening result is {maximum_risk:?} with score {maximum_risk_score}"
             ));
         }
 
@@ -210,9 +205,7 @@ pub const fn famous_mark_context() -> TrademarkContext {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        PortfolioOptions, PortfolioReference, build_portfolio, famous_mark_context,
-    };
+    use super::{PortfolioOptions, PortfolioReference, build_portfolio, famous_mark_context};
     use crate::TrademarkRisk;
 
     #[test]

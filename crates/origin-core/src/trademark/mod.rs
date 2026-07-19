@@ -113,17 +113,9 @@ pub struct TrademarkReport {
 }
 
 /// Stateless trademark-risk analyzer using a fixed context.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct TrademarkAnalyzer {
     context: TrademarkContext,
-}
-
-impl Default for TrademarkAnalyzer {
-    fn default() -> Self {
-        Self {
-            context: TrademarkContext::default(),
-        }
-    }
 }
 
 impl TrademarkAnalyzer {
@@ -148,6 +140,7 @@ pub fn analyze_trademark(candidate: &str, reference: &str) -> TrademarkReport {
 
 /// Screens two names with explicit commercial context.
 #[must_use]
+#[allow(clippy::too_many_lines)]
 pub fn analyze_trademark_risk(
     candidate: &str,
     reference: &str,
@@ -172,7 +165,10 @@ pub fn analyze_trademark_risk(
     }
 
     let mut factors = Vec::new();
-    let mut score = i16::from(similarity.overall_similarity);
+    // Reserve forty points for commercial context so stronger prior marks
+    // remain distinguishable instead of disappearing through score saturation.
+    let similarity_component = u16::from(similarity.overall_similarity).saturating_mul(60) / 100;
+    let mut score = i16::try_from(similarity_component).unwrap_or(60);
 
     push_factor(
         &mut factors,
@@ -232,7 +228,9 @@ pub fn analyze_trademark_risk(
     score += i16::from(strength_impact);
 
     let exact_match = similarity.candidate == similarity.reference;
-    let near_exact = similarity.damerau_score >= 90;
+    // A single insertion, deletion, substitution, or transposition in a
+    // short brand name commonly produces a Damerau score near eighty.
+    let near_exact = similarity.damerau_score >= 80;
     let strong_phonetic = similarity.phonetic_similarity >= 90;
     let strong_visual = similarity.visual_similarity >= 90;
 
@@ -320,6 +318,7 @@ fn push_factor(
     });
 }
 
+#[allow(clippy::fn_params_excessive_bools)]
 fn classify(
     score: u8,
     exact_match: bool,
@@ -393,8 +392,8 @@ fn build_warnings(
 #[cfg(test)]
 mod tests {
     use super::{
-        MarkStrength, TrademarkAnalyzer, TrademarkContext, TrademarkRecommendation,
-        TrademarkRisk, analyze_trademark, analyze_trademark_risk,
+        MarkStrength, TrademarkAnalyzer, TrademarkContext, TrademarkRecommendation, TrademarkRisk,
+        analyze_trademark, analyze_trademark_risk,
     };
 
     #[test]
@@ -402,7 +401,10 @@ mod tests {
         let report = analyze_trademark("Nova", "nova");
 
         assert_eq!(report.risk, TrademarkRisk::Critical);
-        assert_eq!(report.recommendation, TrademarkRecommendation::AvoidCandidate);
+        assert_eq!(
+            report.recommendation,
+            TrademarkRecommendation::AvoidCandidate
+        );
         assert!(!report.provisionally_clear);
     }
 
@@ -428,7 +430,10 @@ mod tests {
         };
         let report = analyze_trademark_risk("danoti", "xelvar", context);
 
-        assert!(matches!(report.risk, TrademarkRisk::Minimal | TrademarkRisk::Low));
+        assert!(matches!(
+            report.risk,
+            TrademarkRisk::Minimal | TrademarkRisk::Low
+        ));
         assert!(report.provisionally_clear);
     }
 
@@ -478,9 +483,12 @@ mod tests {
         let report = analyze_trademark("origin", "orign");
 
         assert!(!report.factors.is_empty());
-        assert!(report.factors.iter().all(|factor| {
-            !factor.code.is_empty() && !factor.explanation.is_empty()
-        }));
+        assert!(
+            report
+                .factors
+                .iter()
+                .all(|factor| { !factor.code.is_empty() && !factor.explanation.is_empty() })
+        );
     }
 
     #[test]
@@ -513,9 +521,12 @@ mod tests {
         let report = analyze_trademark("apple", "appl");
 
         if matches!(report.risk, TrademarkRisk::High | TrademarkRisk::Critical) {
-            assert!(report.warnings.iter().any(|warning| {
-                warning.contains("professional review")
-            }));
+            assert!(
+                report
+                    .warnings
+                    .iter()
+                    .any(|warning| { warning.contains("professional review") })
+            );
         }
     }
 }

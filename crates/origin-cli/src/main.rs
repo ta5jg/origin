@@ -334,11 +334,20 @@ fn print_trademark_table(report: &TrademarkReport) {
     println!("risk_score\t{}", report.risk_score);
     println!("risk\t{:?}", report.risk);
     println!("recommendation\t{:?}", report.recommendation);
-    println!("provisionally_clear\t{}", yes_no(report.provisionally_clear));
+    println!(
+        "provisionally_clear\t{}",
+        yes_no(report.provisionally_clear)
+    );
     println!("same_industry\t{}", yes_no(report.context.same_industry));
-    println!("overlapping_goods\t{}", yes_no(report.context.overlapping_goods));
+    println!(
+        "overlapping_goods\t{}",
+        yes_no(report.context.overlapping_goods)
+    );
     println!("same_market\t{}", yes_no(report.context.same_market));
-    println!("prior_mark_strength\t{:?}", report.context.prior_mark_strength);
+    println!(
+        "prior_mark_strength\t{:?}",
+        report.context.prior_mark_strength
+    );
     for factor in &report.factors {
         println!(
             "factor\t{}\t{:+}\t{}",
@@ -420,7 +429,10 @@ fn print_json<T: serde::Serialize>(value: &T) {
 mod tests {
     use clap::Parser;
 
-    use super::{Cli, CliMarkStrength, Command, parse_beam_width, parse_count, parse_depth, parse_improvement_count};
+    use super::{
+        Cli, CliMarkStrength, Command, parse_beam_width, parse_count, parse_depth,
+        parse_improvement_count,
+    };
 
     #[test]
     fn count_parser_accepts_supported_bounds() {

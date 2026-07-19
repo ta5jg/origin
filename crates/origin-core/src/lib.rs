@@ -19,25 +19,20 @@ pub use evolution::{
     BeamCandidate, BeamSearchOptions, BeamSearchReport, ImproveOptions, ImprovementCandidate,
     ImprovementReport, MutationKind, MutationStep, beam_search, improve,
 };
-pub use fuzzy::{
-    FuzzyInputs, FuzzyReport, LinguisticQuality, Membership, evaluate_fuzzy,
-};
+pub use fuzzy::{FuzzyInputs, FuzzyReport, LinguisticQuality, Membership, evaluate_fuzzy};
 pub use phonotactics::{PhonotacticReport, analyze_name};
 pub use portfolio::{
     PortfolioCandidate, PortfolioConflict, PortfolioOptions, PortfolioReference, PortfolioReport,
     build_portfolio, famous_mark_context,
 };
-pub use rejection::{
-    RejectReason, RejectionPolicy, RejectionResult, evaluate_rejection,
-};
+pub use rejection::{RejectReason, RejectionPolicy, RejectionResult, evaluate_rejection};
 pub use similarity::{
     Analyzer, SimilarityAnalyzer, SimilarityReport, SimilarityRisk, SimilarityWeights,
     analyze_similarity, analyze_similarity_with_weights,
 };
 pub use trademark::{
-    MarkStrength, TrademarkAnalyzer, TrademarkContext, TrademarkFactor,
-    TrademarkRecommendation, TrademarkReport, TrademarkRisk, analyze_trademark,
-    analyze_trademark_risk,
+    MarkStrength, TrademarkAnalyzer, TrademarkContext, TrademarkFactor, TrademarkRecommendation,
+    TrademarkReport, TrademarkRisk, analyze_trademark, analyze_trademark_risk,
 };
 
 const ONSETS: &[u8; 20] = b"bdfgklmnprstvwxyzchj";

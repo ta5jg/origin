@@ -161,8 +161,12 @@ pub fn analyze_similarity_with_weights(
     let left = candidate.chars().collect::<Vec<_>>();
     let right = reference.chars().collect::<Vec<_>>();
 
-    let levenshtein_score = distance_similarity(levenshtein_distance(&left, &right), max_len(&left, &right));
-    let damerau_score = distance_similarity(damerau_levenshtein_distance(&left, &right), max_len(&left, &right));
+    let levenshtein_score =
+        distance_similarity(levenshtein_distance(&left, &right), max_len(&left, &right));
+    let damerau_score = distance_similarity(
+        damerau_levenshtein_distance(&left, &right),
+        max_len(&left, &right),
+    );
     let bigram_similarity = ngram_similarity(&left, &right, 2);
     let trigram_similarity = ngram_similarity(&left, &right, 3);
     let prefix_similarity = edge_similarity(&left, &right, false);
@@ -196,7 +200,9 @@ pub fn analyze_similarity_with_weights(
         (visual_similarity, weights.visual),
         (keyboard_similarity, weights.keyboard),
     ];
-    let overall_similarity = weighted_score(&metrics, weights.total());
+    let weighted_similarity = weighted_score(&metrics, weights.total());
+    let visual_confusable_floor = visual_similarity.saturating_sub(25);
+    let overall_similarity = weighted_similarity.max(visual_confusable_floor);
     let risk = classify_risk(&candidate, &reference, overall_similarity, damerau_score);
     let warnings = build_warnings(
         &candidate,
@@ -424,12 +430,11 @@ fn visual_character(character: char) -> char {
     match character {
         '0' | 'ο' | 'о' => 'o',
         '1' | 'ı' | 'і' | 'ӏ' | 'l' => 'i',
-        '3' => 'e',
+        '3' | 'е' | 'ε' => 'e',
         '5' | 'ѕ' => 's',
         '8' => 'b',
         'а' | 'α' => 'a',
         'с' | 'ϲ' => 'c',
-        'е' | 'ε' => 'e',
         'к' | 'κ' => 'k',
         'м' | 'μ' => 'm',
         'н' | 'η' => 'h',
@@ -452,10 +457,8 @@ fn keyboard_similarity(left: &[char], right: &[char]) -> u8 {
         .map(|(a, b)| {
             if a == b {
                 2_usize
-            } else if keyboard_neighbours(*a, *b) {
-                1
             } else {
-                0
+                usize::from(keyboard_neighbours(*a, *b))
             }
         })
         .sum::<usize>();
@@ -474,8 +477,12 @@ fn keyboard_neighbours(left: char, right: char) -> bool {
                 .map(move |(column, character)| (character, row, column))
         })
         .collect::<BTreeSet<_>>();
-    let left_position = positions.iter().find(|(character, _, _)| *character == left);
-    let right_position = positions.iter().find(|(character, _, _)| *character == right);
+    let left_position = positions
+        .iter()
+        .find(|(character, _, _)| *character == left);
+    let right_position = positions
+        .iter()
+        .find(|(character, _, _)| *character == right);
     match (left_position, right_position) {
         (Some((_, left_row, left_column)), Some((_, right_row, right_column))) => {
             left_row.abs_diff(*right_row) <= 1 && left_column.abs_diff(*right_column) <= 1
@@ -534,31 +541,49 @@ fn build_warnings(
         warnings.push(String::from("the normalized names are identical"));
     }
     if damerau > levenshtein && damerau >= 75 {
-        warnings.push(String::from("a character transposition strongly links the names"));
+        warnings.push(String::from(
+            "a character transposition strongly links the names",
+        ));
     }
     if bigram >= 70 {
-        warnings.push(String::from("the names share a high proportion of adjacent letter pairs"));
+        warnings.push(String::from(
+            "the names share a high proportion of adjacent letter pairs",
+        ));
     }
     if trigram >= 65 {
-        warnings.push(String::from("the names share distinctive three-letter sequences"));
+        warnings.push(String::from(
+            "the names share distinctive three-letter sequences",
+        ));
     }
     if prefix >= 70 {
-        warnings.push(String::from("the names begin with the same or a very similar sequence"));
+        warnings.push(String::from(
+            "the names begin with the same or a very similar sequence",
+        ));
     }
     if suffix >= 70 {
-        warnings.push(String::from("the names end with the same or a very similar sequence"));
+        warnings.push(String::from(
+            "the names end with the same or a very similar sequence",
+        ));
     }
     if phonetic >= 80 {
-        warnings.push(String::from("the names are likely to sound similar when spoken"));
+        warnings.push(String::from(
+            "the names are likely to sound similar when spoken",
+        ));
     }
     if visual >= 85 && visual > damerau {
-        warnings.push(String::from("visually confusable characters increase resemblance"));
+        warnings.push(String::from(
+            "visually confusable characters increase resemblance",
+        ));
     }
     if keyboard >= 85 && overall >= 60 {
-        warnings.push(String::from("the difference is consistent with a nearby-key typing error"));
+        warnings.push(String::from(
+            "the difference is consistent with a nearby-key typing error",
+        ));
     }
     if overall >= 78 {
-        warnings.push(String::from("the combined similarity is high enough to merit conflict review"));
+        warnings.push(String::from(
+            "the combined similarity is high enough to merit conflict review",
+        ));
     }
     warnings
 }
@@ -572,7 +597,12 @@ mod tests {
         let report = analyze_similarity(" Nova ", "nova");
         assert_eq!(report.overall_similarity, 100);
         assert_eq!(report.risk, SimilarityRisk::Critical);
-        assert!(report.warnings.iter().any(|warning| warning.contains("identical")));
+        assert!(
+            report
+                .warnings
+                .iter()
+                .any(|warning| warning.contains("identical"))
+        );
     }
 
     #[test]
@@ -635,7 +665,10 @@ mod tests {
     #[test]
     fn analyzer_trait_matches_free_function() {
         let analyzer = SimilarityAnalyzer::default();
-        assert_eq!(analyzer.analyze("pixel", "pixxel"), analyze_similarity("pixel", "pixxel"));
+        assert_eq!(
+            analyzer.analyze("pixel", "pixxel"),
+            analyze_similarity("pixel", "pixxel")
+        );
     }
 
     #[test]
