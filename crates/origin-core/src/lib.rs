@@ -1,10 +1,12 @@
 //! Core generation, phonotactic analysis and scoring primitives for ORIGIN.
 
 mod analysis;
+mod blueprint;
 mod evolution;
 mod fuzzy;
 mod genome;
 mod identity;
+mod language;
 mod phonotactics;
 mod portfolio;
 mod rejection;
@@ -16,6 +18,10 @@ use serde::Serialize;
 pub use analysis::{
     BrandReport, INTERNATIONAL_TECH_V1, LanguageProfile, ScoreBreakdown, analyze_brand,
     analyze_brand_with_policy, analyze_brand_with_profile,
+};
+pub use blueprint::{
+    BlueprintLimits, BlueprintTrait, ExpressionFamily, IDENTITY_BLUEPRINT_SCHEMA_VERSION,
+    IdentityBlueprint,
 };
 pub use evolution::{
     BeamCandidate, BeamSearchOptions, BeamSearchReport, ImproveOptions, ImprovementCandidate,
@@ -29,6 +35,10 @@ pub use genome::{
 pub use identity::{
     EntityId, EntityKind, Identity, IdentityContext, IdentitySeed, ParseEntityIdError,
     ParseEntityKindError,
+};
+pub use language::{
+    LANGUAGE_SYSTEM_SCHEMA_VERSION, LanguageSystem, MorphologyStrategy, SegmentClass,
+    SyllablePattern, WordOrder,
 };
 pub use phonotactics::{PhonotacticReport, analyze_name};
 pub use portfolio::{
