@@ -2,133 +2,108 @@
 
 > Engineering the next legendary technology brand.
 
-ORIGIN is an experimental Brand Discovery Engine written in Rust.
+ORIGIN is an experimental **brand discovery engine** written in Rust. It explores large naming spaces, filters weak candidates, scores phonetic and structural qualities, and prepares promising names for external validation.
 
-Its mission is to discover globally unique, memorable, pronounceable and future-proof technology brands through linguistic evolution, phonetic analysis, similarity detection and brand scoring.
+ORIGIN is a working codename. One of the project's first long-term goals is to discover and validate its own permanent product name.
 
----
+## Why ORIGIN?
 
-## Vision
+Finding a strong technology brand should not depend on random inspiration alone. ORIGIN treats naming as an engineering problem built from generation, filtering, scoring, similarity analysis, and evidence-based validation.
 
-Finding a great technology brand should not be based on luck.
+The project follows one uncompromising principle:
 
-ORIGIN transforms brand creation into an engineering problem.
+> A candidate is not considered unique until it has been checked against relevant public use, domains, repositories, companies, and trademark databases.
 
-Instead of generating random names, ORIGIN evolves, evaluates and ranks millions of candidates using measurable criteria.
+No automated result is a legal opinion or a guarantee of trademark availability.
 
-The long-term vision is to become the world's most advanced Brand Discovery Engine.
+## Current milestone
 
----
+**Sprint 0 — Genesis**
 
-## Core Principles
+The first milestone establishes a clean Rust workspace and a working command-line path:
 
-- Global uniqueness first
-- Pronounceability
-- Memorability
-- Brand psychology
-- Linguistic evolution
-- Similarity detection
-- Future-proof naming
-- Engineering over intuition
+```bash
+cargo run -p origin-cli -- generate --count 25
+```
 
----
+The initial generator is deliberately small and deterministic. It exists to validate the architecture before more advanced phonetic, evolutionary, similarity, domain, and trademark modules are added.
 
-## Planned Features
+## Planned pipeline
 
-- Million-scale name generation
-- Evolutionary algorithms
-- Phonetic scoring
-- Pronunciation analysis
-- Brand similarity detection
-- Domain availability checks
-- Trademark pre-checks
-- GitHub organization search
-- AI-assisted ranking
-- Interactive desktop application
+```text
+Candidate Generation
+        ↓
+Structural Filtering
+        ↓
+Phonetic Scoring
+        ↓
+Similarity Analysis
+        ↓
+External Validation
+        ↓
+Human Review
+```
 
----
+## Workspace
+
+```text
+origin/
+├── crates/
+│   ├── origin-core/   # Domain logic, generation and scoring
+│   └── origin-cli/    # Command-line interface
+├── docs/              # Design documents
+├── .github/workflows/ # Continuous integration
+├── Cargo.toml
+└── README.md
+```
+
+## Development
+
+Requirements:
+
+- Rust stable with Rust 2024 edition support
+- Cargo
+
+Run all checks:
+
+```bash
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-features
+```
+
+Generate candidates:
+
+```bash
+cargo run -p origin-cli -- generate --count 100 --seed 42
+```
+
+Generate JSON:
+
+```bash
+cargo run -p origin-cli -- generate --count 25 --format json
+```
+
+## Engineering principles
+
+- Uniqueness before attachment
+- Evidence before claims
+- Deterministic and testable core logic
+- Clippy-clean and rustfmt-clean code
+- No undocumented public API
+- Human review remains part of every final naming decision
+- External validation is a risk screen, not legal clearance
 
 ## Roadmap
 
-### v0.1
-
-- Million-scale candidate generator
-- Phonetic filters
-- JSON export
-
-### v0.2
-
-- Brand scoring engine
-- Similarity detector
-- Ranking
-
-### v0.3
-
-- Domain scanner
-- Trademark pre-check
-- GitHub lookup
-
-### v0.4
-
-- Desktop application
-- Interactive explorer
-- AI-assisted recommendations
-
----
-
-## Architecture
-
-```
-Generator
-        │
-        ▼
-Phonetic Filter
-        │
-        ▼
-Brand Scoring
-        │
-        ▼
-Similarity Engine
-        │
-        ▼
-Validation
-        │
-        ▼
-Top Candidates
-```
-
----
-
-## Philosophy
-
-A legendary brand is not invented.
-
-It is discovered.
-
----
-
-## Why Rust?
-
-Performance.
-
-Safety.
-
-Scalability.
-
-Millions of candidates require millions of comparisons.
-
-Rust makes that practical.
-
----
-
-## Current Status
-
-Project initialization.
-
-The architecture is currently under active development.
-
----
+See [ROADMAP.md](ROADMAP.md).
 
 ## License
 
-MIT
+Licensed under the MIT License. See [LICENSE](LICENSE).
+
+---
+
+The next generation of technology companies deserves better names.
+
+**ORIGIN exists to help discover them.**
