@@ -1,5 +1,11 @@
 //! Deterministic mutation and ranking for improving existing brand names.
 
+mod beam;
+
+pub use beam::{
+    BeamCandidate, BeamSearchOptions, BeamSearchReport, MutationStep, beam_search,
+};
+
 use std::collections::HashSet;
 
 use serde::Serialize;
