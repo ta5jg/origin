@@ -6,27 +6,39 @@ use serde::Serialize;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LinguisticQuality {
+    /// Perceived brand quality is severely weak.
     VeryLow,
+    /// Perceived brand quality is below the desired range.
     Low,
+    /// Perceived brand quality is balanced but unexceptional.
     Medium,
+    /// Perceived brand quality is strong.
     High,
+    /// Perceived brand quality is exceptional.
     Excellent,
 }
 
 /// One linguistic membership degree on a zero-to-one-hundred scale.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct Membership {
+    /// Linguistic set represented by this membership.
     pub quality: LinguisticQuality,
+    /// Degree of membership from zero to one hundred.
     pub degree: u8,
 }
 
 /// Deterministic component scores consumed by the fuzzy engine.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FuzzyInputs {
+    /// Ease of pronunciation from zero to one hundred.
     pub pronounceability: u8,
+    /// Regularity of vowel and consonant alternation.
     pub rhythm: u8,
+    /// Balance between vowels and consonants.
     pub vowel_balance: u8,
+    /// Resistance to mechanical letter and bigram repetition.
     pub repetition: u8,
+    /// Smoothness and diversity of adjacent phoneme transitions.
     pub transition_quality: u8,
 }
 
@@ -62,10 +74,8 @@ pub fn evaluate_fuzzy(inputs: FuzzyInputs) -> FuzzyReport {
         (inputs.rhythm, 25),
         (inputs.transition_quality, 30),
     ]);
-    let distinctiveness = weighted_average(&[
-        (inputs.repetition, 60),
-        (inputs.transition_quality, 40),
-    ]);
+    let distinctiveness =
+        weighted_average(&[(inputs.repetition, 60), (inputs.transition_quality, 40)]);
 
     let mut activated_rules = Vec::new();
     let excellent_flow = minimum(&[
@@ -106,17 +116,11 @@ pub fn evaluate_fuzzy(inputs: FuzzyInputs) -> FuzzyReport {
         ));
     }
 
-    let baseline = weighted_average(&[
-        (naturalness, 40),
-        (memorability, 30),
-        (distinctiveness, 30),
-    ]);
-    let positive_adjustment = (u16::from(excellent_flow) * 8
-        + u16::from(strong_balance) * 5)
-        / 100;
-    let negative_adjustment = (u16::from(weak_pronunciation) * 12
-        + u16::from(mechanical_pattern) * 10)
-        / 100;
+    let baseline =
+        weighted_average(&[(naturalness, 40), (memorability, 30), (distinctiveness, 30)]);
+    let positive_adjustment = (u16::from(excellent_flow) * 8 + u16::from(strong_balance) * 5) / 100;
+    let negative_adjustment =
+        (u16::from(weak_pronunciation) * 12 + u16::from(mechanical_pattern) * 10) / 100;
     let adjusted = u16::from(baseline)
         .saturating_add(positive_adjustment)
         .saturating_sub(negative_adjustment)
@@ -284,7 +288,11 @@ mod tests {
         });
 
         assert!(weak.score < strong.score);
-        assert!(weak.activated_rules.iter().any(|rule| rule.contains("weak pronunciation")));
+        assert!(
+            weak.activated_rules
+                .iter()
+                .any(|rule| rule.contains("weak pronunciation"))
+        );
     }
 
     #[test]
@@ -300,7 +308,12 @@ mod tests {
 
             assert!(report.score <= 100);
             assert!(report.confidence <= 100);
-            assert!(report.memberships.iter().all(|membership| membership.degree <= 100));
+            assert!(
+                report
+                    .memberships
+                    .iter()
+                    .all(|membership| membership.degree <= 100)
+            );
         }
     }
 }
