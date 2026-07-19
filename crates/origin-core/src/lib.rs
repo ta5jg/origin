@@ -3,18 +3,22 @@
 mod analysis;
 mod evolution;
 mod phonotactics;
+mod rejection;
 
 use serde::Serialize;
 
 pub use analysis::{
     BrandReport, INTERNATIONAL_TECH_V1, LanguageProfile, ScoreBreakdown, analyze_brand,
-    analyze_brand_with_profile,
+    analyze_brand_with_policy, analyze_brand_with_profile,
 };
 pub use evolution::{
     BeamCandidate, BeamSearchOptions, BeamSearchReport, ImproveOptions, ImprovementCandidate,
     ImprovementReport, MutationKind, MutationStep, beam_search, improve,
 };
 pub use phonotactics::{PhonotacticReport, analyze_name};
+pub use rejection::{
+    RejectReason, RejectionPolicy, RejectionResult, evaluate_rejection,
+};
 
 const ONSETS: &[u8; 20] = b"bdfgklmnprstvwxyzchj";
 const VOWELS: &[u8; 5] = b"aeiou";
