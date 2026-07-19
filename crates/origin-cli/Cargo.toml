@@ -1,0 +1,20 @@
+[package]
+name = "origin-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Command-line interface for the ORIGIN brand discovery engine"
+
+[[bin]]
+name = "origin"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+origin-core = { path = "../origin-core" }
+serde_json = "1.0"
+
+[lints]
+workspace = true
