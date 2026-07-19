@@ -3,7 +3,9 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use origin_core::{
     BeamSearchOptions, BeamSearchReport, BrandReport, GenerateOptions, ImproveOptions,
-    ImprovementReport, MAX_CANDIDATES, analyze_brand, beam_search, generate, improve,
+    ImprovementReport, MAX_CANDIDATES, MarkStrength, SimilarityReport, TrademarkContext,
+    TrademarkReport, analyze_brand, analyze_similarity, analyze_trademark_risk, beam_search,
+    generate, improve,
 };
 
 #[derive(Debug, Parser)]
@@ -34,6 +36,48 @@ enum Command {
     Check {
         /// Name to evaluate.
         name: String,
+
+        /// Output representation.
+        #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
+        format: OutputFormat,
+    },
+
+    /// Compare two names with the deterministic similarity engine.
+    Compare {
+        /// Candidate name being evaluated.
+        candidate: String,
+
+        /// Existing or reference name.
+        reference: String,
+
+        /// Output representation.
+        #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
+        format: OutputFormat,
+    },
+
+    /// Screen a candidate against an earlier mark for trademark-conflict risk.
+    Trademark {
+        /// Candidate name being evaluated.
+        candidate: String,
+
+        /// Earlier or reference mark.
+        reference: String,
+
+        /// Treat both names as operating in the same broad industry.
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+        same_industry: bool,
+
+        /// Treat the goods or services as directly overlapping.
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+        overlapping_goods: bool,
+
+        /// Treat both marks as targeting the same market or customer group.
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+        same_market: bool,
+
+        /// Estimated commercial strength of the earlier mark.
+        #[arg(long, value_enum, default_value_t = CliMarkStrength::Average)]
+        prior_mark_strength: CliMarkStrength,
 
         /// Output representation.
         #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
@@ -91,6 +135,25 @@ enum OutputFormat {
     Json,
 }
 
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum CliMarkStrength {
+    Weak,
+    Average,
+    Strong,
+    Famous,
+}
+
+impl From<CliMarkStrength> for MarkStrength {
+    fn from(value: CliMarkStrength) -> Self {
+        match value {
+            CliMarkStrength::Weak => Self::Weak,
+            CliMarkStrength::Average => Self::Average,
+            CliMarkStrength::Strong => Self::Strong,
+            CliMarkStrength::Famous => Self::Famous,
+        }
+    }
+}
+
 fn parse_count(value: &str) -> Result<usize, String> {
     parse_bounded_count(value, MAX_CANDIDATES, "candidate")
 }
@@ -138,6 +201,41 @@ fn main() {
             let report = analyze_brand(&name);
             match format {
                 OutputFormat::Table => print_check_table(&report),
+                OutputFormat::Json => print_json(&report),
+            }
+        }
+        Command::Compare {
+            candidate,
+            reference,
+            format,
+        } => {
+            let report = analyze_similarity(&candidate, &reference);
+            match format {
+                OutputFormat::Table => print_similarity_table(&report),
+                OutputFormat::Json => print_json(&report),
+            }
+        }
+        Command::Trademark {
+            candidate,
+            reference,
+            same_industry,
+            overlapping_goods,
+            same_market,
+            prior_mark_strength,
+            format,
+        } => {
+            let report = analyze_trademark_risk(
+                &candidate,
+                &reference,
+                TrademarkContext {
+                    same_industry,
+                    overlapping_goods,
+                    same_market,
+                    prior_mark_strength: prior_mark_strength.into(),
+                },
+            );
+            match format {
+                OutputFormat::Table => print_trademark_table(&report),
                 OutputFormat::Json => print_json(&report),
             }
         }
@@ -208,13 +306,46 @@ fn print_check_table(report: &BrandReport) {
     println!("repetition\t{}", report.scores.repetition);
     println!("transition_quality\t{}", report.scores.transition_quality);
     println!("accepted\t{}", yes_no(report.accepted));
-    if report.warnings.is_empty() {
-        println!("warnings\tnone");
-    } else {
-        for warning in &report.warnings {
-            println!("warning\t{warning}");
-        }
+    print_warnings(&report.warnings);
+}
+
+fn print_similarity_table(report: &SimilarityReport) {
+    println!("candidate\t{}", report.candidate);
+    println!("reference\t{}", report.reference);
+    println!("overall_similarity\t{}", report.overall_similarity);
+    println!("risk\t{:?}", report.risk);
+    println!("levenshtein\t{}", report.levenshtein_score);
+    println!("damerau\t{}", report.damerau_score);
+    println!("bigram\t{}", report.bigram_similarity);
+    println!("trigram\t{}", report.trigram_similarity);
+    println!("prefix\t{}", report.prefix_similarity);
+    println!("suffix\t{}", report.suffix_similarity);
+    println!("shared_characters\t{}", report.shared_character_ratio);
+    println!("phonetic\t{}", report.phonetic_similarity);
+    println!("visual\t{}", report.visual_similarity);
+    println!("keyboard\t{}", report.keyboard_similarity);
+    print_warnings(&report.warnings);
+}
+
+fn print_trademark_table(report: &TrademarkReport) {
+    println!("candidate\t{}", report.similarity.candidate);
+    println!("reference\t{}", report.similarity.reference);
+    println!("similarity\t{}", report.similarity.overall_similarity);
+    println!("risk_score\t{}", report.risk_score);
+    println!("risk\t{:?}", report.risk);
+    println!("recommendation\t{:?}", report.recommendation);
+    println!("provisionally_clear\t{}", yes_no(report.provisionally_clear));
+    println!("same_industry\t{}", yes_no(report.context.same_industry));
+    println!("overlapping_goods\t{}", yes_no(report.context.overlapping_goods));
+    println!("same_market\t{}", yes_no(report.context.same_market));
+    println!("prior_mark_strength\t{:?}", report.context.prior_mark_strength);
+    for factor in &report.factors {
+        println!(
+            "factor\t{}\t{:+}\t{}",
+            factor.code, factor.impact, factor.explanation
+        );
     }
+    print_warnings(&report.warnings);
 }
 
 fn print_improvement_table(report: &ImprovementReport) {
@@ -261,6 +392,16 @@ fn print_beam_search_table(report: &BeamSearchReport) {
     }
 }
 
+fn print_warnings(warnings: &[String]) {
+    if warnings.is_empty() {
+        println!("warnings\tnone");
+    } else {
+        for warning in warnings {
+            println!("warning\t{warning}");
+        }
+    }
+}
+
 fn yes_no(value: bool) -> &'static str {
     if value { "yes" } else { "no" }
 }
@@ -277,7 +418,9 @@ fn print_json<T: serde::Serialize>(value: &T) {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_beam_width, parse_count, parse_depth, parse_improvement_count};
+    use clap::Parser;
+
+    use super::{Cli, CliMarkStrength, Command, parse_beam_width, parse_count, parse_depth, parse_improvement_count};
 
     #[test]
     fn count_parser_accepts_supported_bounds() {
@@ -306,5 +449,47 @@ mod tests {
         assert_eq!(parse_depth("8"), Ok(8));
         assert!(parse_beam_width("251").is_err());
         assert!(parse_depth("9").is_err());
+    }
+
+    #[test]
+    fn compare_command_parses_two_names() {
+        let cli = Cli::try_parse_from(["origin", "compare", "orign", "origin"])
+            .expect("compare command should parse");
+
+        assert!(matches!(
+            cli.command,
+            Command::Compare {
+                candidate,
+                reference,
+                ..
+            } if candidate == "orign" && reference == "origin"
+        ));
+    }
+
+    #[test]
+    fn trademark_command_parses_explicit_context() {
+        let cli = Cli::try_parse_from([
+            "origin",
+            "trademark",
+            "orign",
+            "origin",
+            "--same-industry=false",
+            "--overlapping-goods=false",
+            "--same-market=false",
+            "--prior-mark-strength",
+            "famous",
+        ])
+        .expect("trademark command should parse");
+
+        assert!(matches!(
+            cli.command,
+            Command::Trademark {
+                same_industry: false,
+                overlapping_goods: false,
+                same_market: false,
+                prior_mark_strength: CliMarkStrength::Famous,
+                ..
+            }
+        ));
     }
 }
