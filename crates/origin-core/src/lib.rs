@@ -5,6 +5,7 @@ mod evolution;
 mod fuzzy;
 mod phonotactics;
 mod rejection;
+mod similarity;
 
 use serde::Serialize;
 
@@ -22,6 +23,10 @@ pub use fuzzy::{
 pub use phonotactics::{PhonotacticReport, analyze_name};
 pub use rejection::{
     RejectReason, RejectionPolicy, RejectionResult, evaluate_rejection,
+};
+pub use similarity::{
+    Analyzer, SimilarityAnalyzer, SimilarityReport, SimilarityRisk, SimilarityWeights,
+    analyze_similarity, analyze_similarity_with_weights,
 };
 
 const ONSETS: &[u8; 20] = b"bdfgklmnprstvwxyzchj";
