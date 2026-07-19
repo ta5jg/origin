@@ -2,8 +2,8 @@
 
 use clap::{Parser, Subcommand, ValueEnum};
 use origin_core::{
-    BrandReport, GenerateOptions, ImproveOptions, ImprovementReport, MAX_CANDIDATES, analyze_brand,
-    generate, improve,
+    BeamSearchOptions, BeamSearchReport, BrandReport, GenerateOptions, ImproveOptions,
+    ImprovementReport, MAX_CANDIDATES, analyze_brand, beam_search, generate, improve,
 };
 
 #[derive(Debug, Parser)]
@@ -57,6 +57,32 @@ enum Command {
         #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
         format: OutputFormat,
     },
+
+    /// Search multiple sequential phoneme improvements with beam search.
+    Optimize {
+        /// Existing name to optimize.
+        name: String,
+
+        /// Maximum number of final ranked results to return.
+        #[arg(long, default_value_t = 10, value_parser = parse_improvement_count)]
+        count: usize,
+
+        /// Maximum number of active candidates retained per depth.
+        #[arg(long, default_value_t = 12, value_parser = parse_beam_width)]
+        beam_width: usize,
+
+        /// Maximum number of sequential one-phoneme mutations.
+        #[arg(long, default_value_t = 2, value_parser = parse_depth)]
+        depth: usize,
+
+        /// Seed used for reproducible search and tie-breaking.
+        #[arg(long, default_value_t = 1)]
+        seed: u64,
+
+        /// Output representation.
+        #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
+        format: OutputFormat,
+    },
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -71,6 +97,14 @@ fn parse_count(value: &str) -> Result<usize, String> {
 
 fn parse_improvement_count(value: &str) -> Result<usize, String> {
     parse_bounded_count(value, 1_000, "improvement")
+}
+
+fn parse_beam_width(value: &str) -> Result<usize, String> {
+    parse_bounded_count(value, 250, "beam width")
+}
+
+fn parse_depth(value: &str) -> Result<usize, String> {
+    parse_bounded_count(value, 8, "search depth")
 }
 
 fn parse_bounded_count(value: &str, maximum: usize, label: &str) -> Result<usize, String> {
@@ -116,6 +150,28 @@ fn main() {
             let report = improve(&name, ImproveOptions { count, seed });
             match format {
                 OutputFormat::Table => print_improvement_table(&report),
+                OutputFormat::Json => print_json(&report),
+            }
+        }
+        Command::Optimize {
+            name,
+            count,
+            beam_width,
+            depth,
+            seed,
+            format,
+        } => {
+            let report = beam_search(
+                &name,
+                BeamSearchOptions {
+                    count,
+                    beam_width,
+                    depth,
+                    seed,
+                },
+            );
+            match format {
+                OutputFormat::Table => print_beam_search_table(&report),
                 OutputFormat::Json => print_json(&report),
             }
         }
@@ -184,6 +240,27 @@ fn print_improvement_table(report: &ImprovementReport) {
     }
 }
 
+fn print_beam_search_table(report: &BeamSearchReport) {
+    println!("original\t{}", report.original.normalized);
+    println!("original_score\t{}", report.original.overall_score);
+    println!("original_accepted\t{}", yes_no(report.original.accepted));
+    println!();
+    println!("rank\toverall\tdelta\tsteps\taccepted\tname\tpath");
+
+    for (index, candidate) in report.results.iter().enumerate() {
+        println!(
+            "{}\t{}\t{:+}\t{}\t{}\t{}\t{}",
+            index + 1,
+            candidate.score,
+            candidate.total_delta,
+            candidate.steps.len(),
+            yes_no(candidate.accepted),
+            candidate.name,
+            candidate.path.join(" -> ")
+        );
+    }
+}
+
 fn yes_no(value: bool) -> &'static str {
     if value { "yes" } else { "no" }
 }
@@ -200,7 +277,7 @@ fn print_json<T: serde::Serialize>(value: &T) {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_count, parse_improvement_count};
+    use super::{parse_beam_width, parse_count, parse_depth, parse_improvement_count};
 
     #[test]
     fn count_parser_accepts_supported_bounds() {
@@ -221,5 +298,13 @@ mod tests {
         assert_eq!(parse_improvement_count("1000"), Ok(1_000));
         assert!(parse_improvement_count("0").is_err());
         assert!(parse_improvement_count("1001").is_err());
+    }
+
+    #[test]
+    fn beam_search_parsers_enforce_safe_bounds() {
+        assert_eq!(parse_beam_width("250"), Ok(250));
+        assert_eq!(parse_depth("8"), Ok(8));
+        assert!(parse_beam_width("251").is_err());
+        assert!(parse_depth("9").is_err());
     }
 }
