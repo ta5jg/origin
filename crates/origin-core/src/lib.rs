@@ -2,6 +2,7 @@
 
 mod analysis;
 mod evolution;
+mod fuzzy;
 mod phonotactics;
 mod rejection;
 
@@ -14,6 +15,9 @@ pub use analysis::{
 pub use evolution::{
     BeamCandidate, BeamSearchOptions, BeamSearchReport, ImproveOptions, ImprovementCandidate,
     ImprovementReport, MutationKind, MutationStep, beam_search, improve,
+};
+pub use fuzzy::{
+    FuzzyInputs, FuzzyReport, LinguisticQuality, Membership, evaluate_fuzzy,
 };
 pub use phonotactics::{PhonotacticReport, analyze_name};
 pub use rejection::{
