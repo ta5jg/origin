@@ -8,6 +8,17 @@ use crate::{BrandReport, analyze_brand};
 
 const ONSETS: &[u8] = b"bdfgklmnprstvwxyzchj";
 const VOWELS: &[u8] = b"aeiou";
+const CONSONANT_GROUPS: &[&[u8]] = &[
+    b"bpfv", // labial
+    b"dt",   // dental
+    b"gk",   // velar
+    b"lr",   // liquid
+    b"mn",   // nasal
+    b"sz",   // sibilant
+    b"cj",   // affricate-like
+    b"hw",   // approximant-like
+    b"xy",   // extended fricative-like
+];
 
 /// Configuration for deterministic brand-name improvement.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,6 +46,8 @@ pub struct ImprovementCandidate {
     pub score_delta: i16,
     /// Whether the mutation passes the active profile threshold.
     pub accepted: bool,
+    /// Phonetic similarity of the replacement, from one to three.
+    pub phonetic_affinity: u8,
     /// Position changed in the normalized original name.
     pub changed_position: usize,
     /// Original ASCII character at the changed position.
@@ -59,6 +72,8 @@ pub struct ImprovementReport {
 /// Consonant positions are replaced only with supported onsets and vowel
 /// positions only with supported vowels. This preserves the source name's
 /// broad consonant-vowel shape while allowing weaknesses to be repaired.
+/// Equal-quality mutations prefer phonetically related replacements before
+/// the seeded deterministic tie-breaker is applied.
 ///
 /// # Panics
 ///
@@ -81,14 +96,11 @@ pub fn improve(input: &str, options: ImproveOptions) -> ImprovementReport {
     let mut suggestions = Vec::new();
 
     for position in 0..bytes.len() {
-        let replacements = if is_vowel(bytes[position]) {
-            VOWELS
-        } else {
-            ONSETS
-        };
+        let replaced = bytes[position];
+        let replacements = if is_vowel(replaced) { VOWELS } else { ONSETS };
 
         for &replacement in replacements {
-            if replacement == bytes[position] {
+            if replacement == replaced {
                 continue;
             }
 
@@ -105,8 +117,9 @@ pub fn improve(input: &str, options: ImproveOptions) -> ImprovementReport {
                 score: report.overall_score,
                 score_delta: i16::from(report.overall_score) - i16::from(original.overall_score),
                 accepted: report.accepted,
+                phonetic_affinity: phonetic_affinity(replaced, replacement),
                 changed_position: position,
-                replaced: char::from(bytes[position]),
+                replaced: char::from(replaced),
                 replacement: char::from(replacement),
                 name,
                 report,
@@ -126,6 +139,7 @@ pub fn improve(input: &str, options: ImproveOptions) -> ImprovementReport {
                     .repetition
                     .cmp(&left.report.scores.repetition)
             })
+            .then_with(|| right.phonetic_affinity.cmp(&left.phonetic_affinity))
             .then_with(|| {
                 mutation_tie_key(&left.name, options.seed)
                     .cmp(&mutation_tie_key(&right.name, options.seed))
@@ -137,6 +151,30 @@ pub fn improve(input: &str, options: ImproveOptions) -> ImprovementReport {
     ImprovementReport {
         original,
         suggestions,
+    }
+}
+
+fn phonetic_affinity(replaced: u8, replacement: u8) -> u8 {
+    if is_vowel(replaced) && is_vowel(replacement) {
+        return vowel_affinity(replaced, replacement);
+    }
+
+    if CONSONANT_GROUPS
+        .iter()
+        .any(|group| group.contains(&replaced) && group.contains(&replacement))
+    {
+        3
+    } else {
+        1
+    }
+}
+
+const fn vowel_affinity(left: u8, right: u8) -> u8 {
+    match (left, right) {
+        (b'a', b'o') | (b'o', b'a') | (b'o', b'u') | (b'u', b'o') => 3,
+        (b'e', b'i') | (b'i', b'e') => 3,
+        (b'a', b'u') | (b'u', b'a') => 2,
+        _ => 1,
     }
 }
 
@@ -155,7 +193,7 @@ fn is_vowel(byte: u8) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{ImproveOptions, improve};
+    use super::{ImproveOptions, improve, phonetic_affinity};
 
     #[test]
     fn improvement_is_deterministic() {
@@ -192,6 +230,27 @@ mod tests {
                 1
             );
         }
+    }
+
+    #[test]
+    fn phonetic_groups_prefer_related_replacements() {
+        assert_eq!(phonetic_affinity(b'g', b'k'), 3);
+        assert_eq!(phonetic_affinity(b'l', b'r'), 3);
+        assert_eq!(phonetic_affinity(b'e', b'i'), 3);
+        assert_eq!(phonetic_affinity(b'g', b'z'), 1);
+        assert_eq!(phonetic_affinity(b'a', b'i'), 1);
+    }
+
+    #[test]
+    fn every_suggestion_exposes_a_valid_phonetic_affinity() {
+        let result = improve("pogoga", ImproveOptions { count: 25, seed: 1 });
+
+        assert!(
+            result
+                .suggestions
+                .iter()
+                .all(|suggestion| (1..=3).contains(&suggestion.phonetic_affinity))
+        );
     }
 
     #[test]
