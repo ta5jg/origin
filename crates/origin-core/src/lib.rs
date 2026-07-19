@@ -5,6 +5,8 @@ use serde::Serialize;
 const ONSETS: &[u8; 20] = b"bdfgklmnprstvwxyzchj";
 const VOWELS: &[u8; 5] = b"aeiou";
 const SYLLABLE_RADIX: usize = ONSETS.len() * VOWELS.len();
+const MAX_CANDIDATES_U64: u64 = 1_000_000;
+
 /// Maximum number of unique three-syllable candidates in the current model.
 pub const MAX_CANDIDATES: usize = SYLLABLE_RADIX * SYLLABLE_RADIX * SYLLABLE_RADIX;
 
@@ -28,7 +30,10 @@ pub struct GenerateOptions {
 
 impl Default for GenerateOptions {
     fn default() -> Self {
-        Self { count: 100, seed: 1 }
+        Self {
+            count: 100,
+            seed: 1,
+        }
     }
 }
 
@@ -47,7 +52,9 @@ pub fn generate(options: GenerateOptions) -> Vec<Candidate> {
 
     let mut candidates = Vec::with_capacity(count);
     for offset in 0..count {
-        let index = (start + offset * step) % MAX_CANDIDATES;
+        let offset = u64::try_from(offset).expect("candidate offset fits in u64");
+        let index = (start + offset * step) % MAX_CANDIDATES_U64;
+        let index = usize::try_from(index).expect("candidate index fits in usize");
         let name = compose_from_index(index);
         candidates.push(Candidate {
             score: structural_score(&name),
@@ -81,16 +88,16 @@ fn compose_from_index(mut index: usize) -> String {
     String::from_utf8(bytes.to_vec()).expect("the phoneme table contains ASCII only")
 }
 
-fn seed_start(seed: u64) -> usize {
-    (mix(seed) as usize) % MAX_CANDIDATES
+fn seed_start(seed: u64) -> u64 {
+    mix(seed) % MAX_CANDIDATES_U64
 }
 
-fn seed_step(seed: u64) -> usize {
-    let mut step = ((mix(seed ^ 0xA5A5_A5A5_A5A5_A5A5) as usize) % MAX_CANDIDATES).max(1);
+fn seed_step(seed: u64) -> u64 {
+    let mut step = (mix(seed ^ 0xA5A5_A5A5_A5A5_A5A5) % MAX_CANDIDATES_U64).max(1);
 
-    while step % 2 == 0 || step % 5 == 0 {
+    while step.is_multiple_of(2) || step.is_multiple_of(5) {
         step += 1;
-        if step >= MAX_CANDIDATES {
+        if step >= MAX_CANDIDATES_U64 {
             step = 1;
         }
     }
@@ -141,7 +148,10 @@ mod tests {
 
     #[test]
     fn generation_is_deterministic() {
-        let options = GenerateOptions { count: 25, seed: 42 };
+        let options = GenerateOptions {
+            count: 25,
+            seed: 42,
+        };
         assert_eq!(generate(options), generate(options));
     }
 
@@ -166,11 +176,13 @@ mod tests {
 
         assert_eq!(candidates.len(), 10_000);
         assert_eq!(candidates.len(), unique.len());
-        assert!(candidates.iter().all(|candidate| {
-            candidate.name.len() == 6
-                && candidate.name.is_ascii()
-                && candidate.score <= 100
-        }));
+        assert!(
+            candidates
+                .iter()
+                .all(|candidate| candidate.name.len() == 6
+                    && candidate.name.is_ascii()
+                    && candidate.score <= 100)
+        );
     }
 
     #[test]
