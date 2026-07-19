@@ -1,22 +1,29 @@
-//! Core generation and scoring primitives for ORIGIN.
+//! Core generation, phonotactic analysis and scoring primitives for ORIGIN.
+
+mod phonotactics;
 
 use serde::Serialize;
+
+pub use phonotactics::{PhonotacticReport, analyze_name};
 
 const ONSETS: &[u8; 20] = b"bdfgklmnprstvwxyzchj";
 const VOWELS: &[u8; 5] = b"aeiou";
 const SYLLABLE_RADIX: usize = ONSETS.len() * VOWELS.len();
-const MAX_CANDIDATES_U64: u64 = 1_000_000;
 
 /// Maximum number of unique three-syllable candidates in the current model.
 pub const MAX_CANDIDATES: usize = SYLLABLE_RADIX * SYLLABLE_RADIX * SYLLABLE_RADIX;
 
-/// A generated brand-name candidate and its preliminary structural score.
+/// A generated brand-name candidate and its preliminary quality scores.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Candidate {
     /// Candidate text in lowercase ASCII.
     pub name: String,
-    /// Preliminary score from zero to one hundred.
+    /// Combined preliminary score from zero to one hundred.
     pub score: u8,
+    /// Pronounceability-oriented phonotactic score.
+    pub phonotactic_score: u8,
+    /// Whether the candidate passes the current phonotactic threshold.
+    pub accepted: bool,
 }
 
 /// Configuration for deterministic candidate generation.
@@ -52,18 +59,23 @@ pub fn generate(options: GenerateOptions) -> Vec<Candidate> {
 
     let mut candidates = Vec::with_capacity(count);
     for offset in 0..count {
-        let index = (start + offset * step) % MAX_CANDIDATES;
+        let index = (start + offset.wrapping_mul(step)) % MAX_CANDIDATES;
         let name = compose_from_index(index);
+        let structural_score = structural_score(&name);
+        let report = analyze_name(&name);
         candidates.push(Candidate {
-            score: structural_score(&name),
+            score: combined_score(structural_score, report.score),
+            phonotactic_score: report.score,
+            accepted: report.accepted,
             name,
         });
     }
 
     candidates.sort_unstable_by(|left, right| {
         right
-            .score
-            .cmp(&left.score)
+            .accepted
+            .cmp(&left.accepted)
+            .then_with(|| right.score.cmp(&left.score))
             .then_with(|| left.name.cmp(&right.name))
     });
     candidates
@@ -86,17 +98,13 @@ fn compose_from_index(mut index: usize) -> String {
     String::from_utf8(bytes.to_vec()).expect("the phoneme table contains ASCII only")
 }
 
-fn bounded_index(value: u64) -> usize {
-    usize::try_from(value % MAX_CANDIDATES_U64).unwrap_or_default()
-}
-
 fn seed_start(seed: u64) -> usize {
-    bounded_index(mix(seed))
+    reduced_seed(seed)
 }
 
 #[allow(clippy::manual_is_multiple_of)]
 fn seed_step(seed: u64) -> usize {
-    let mut step = bounded_index(mix(seed ^ 0xA5A5_A5A5_A5A5_A5A5)).max(1);
+    let mut step = reduced_seed(seed ^ 0xA5A5_A5A5_A5A5_A5A5).max(1);
 
     while step % 2 == 0 || step % 5 == 0 {
         step += 1;
@@ -106,6 +114,11 @@ fn seed_step(seed: u64) -> usize {
     }
 
     step
+}
+
+fn reduced_seed(seed: u64) -> usize {
+    let reduced = mix(seed) % 1_000_000;
+    usize::try_from(reduced).unwrap_or_default()
 }
 
 const fn mix(mut value: u64) -> u64 {
@@ -142,6 +155,11 @@ fn structural_score(name: &str) -> u8 {
     };
 
     diversity_score + ending_score + repetition_score
+}
+
+fn combined_score(structural: u8, phonotactic: u8) -> u8 {
+    let weighted = u16::from(structural) * 40 + u16::from(phonotactic) * 60;
+    u8::try_from(weighted / 100).unwrap_or(100)
 }
 
 #[cfg(test)]
@@ -181,7 +199,21 @@ mod tests {
         assert_eq!(candidates.len(), unique.len());
         assert!(candidates.iter().all(|candidate| candidate.name.len() == 6
             && candidate.name.is_ascii()
-            && candidate.score <= 100));
+            && candidate.score <= 100
+            && candidate.phonotactic_score <= 100));
+    }
+
+    #[test]
+    fn accepted_candidates_are_ranked_before_rejected_candidates() {
+        let candidates = generate(GenerateOptions {
+            count: 1_000,
+            seed: 42,
+        });
+        let first_rejected = candidates.iter().position(|candidate| !candidate.accepted);
+
+        if let Some(index) = first_rejected {
+            assert!(candidates[index..].iter().all(|candidate| !candidate.accepted));
+        }
     }
 
     #[test]
