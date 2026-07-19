@@ -40,7 +40,9 @@ pub fn analyze_name(input: &str) -> PhonotacticReport {
     }
 
     if !(4..=12).contains(&bytes.len()) {
-        warnings.push(String::from("name length should be between 4 and 12 letters"));
+        warnings.push(String::from(
+            "name length should be between 4 and 12 letters",
+        ));
         return rejected_report(normalized, warnings);
     }
 
