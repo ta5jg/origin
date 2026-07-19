@@ -3,6 +3,7 @@
 use serde::Serialize;
 
 use crate::phonotactics::analyze_name;
+use crate::rejection::{RejectReason, RejectionPolicy, evaluate_rejection};
 
 /// Configuration describing one linguistic scoring profile.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -34,6 +35,16 @@ pub struct ScoreBreakdown {
     pub transition_quality: u8,
 }
 
+impl ScoreBreakdown {
+    const ZERO: Self = Self {
+        pronounceability: 0,
+        rhythm: 0,
+        vowel_balance: 0,
+        repetition: 0,
+        transition_quality: 0,
+    };
+}
+
 /// Complete explainable analysis of one candidate name.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct BrandReport {
@@ -41,6 +52,10 @@ pub struct BrandReport {
     pub normalized: String,
     /// Identifier of the language profile used for scoring.
     pub profile: String,
+    /// Whether a deterministic veto bypassed every scoring layer.
+    pub hard_reject: bool,
+    /// Reason for a deterministic veto, when one occurred.
+    pub reject_reason: Option<RejectReason>,
     /// Weighted overall score from zero to one hundred.
     pub overall_score: u8,
     /// Whether the name passes both phonotactic and overall thresholds.
@@ -54,36 +69,47 @@ pub struct BrandReport {
 /// Analyzes a name with the default international technology-brand profile.
 #[must_use]
 pub fn analyze_brand(input: &str) -> BrandReport {
-    analyze_brand_with_profile(input, INTERNATIONAL_TECH_V1)
+    analyze_brand_with_policy(input, INTERNATIONAL_TECH_V1, RejectionPolicy::default())
 }
 
 /// Analyzes a name with an explicitly selected language profile.
 #[must_use]
 pub fn analyze_brand_with_profile(input: &str, profile: LanguageProfile) -> BrandReport {
-    let phonotactic = analyze_name(input);
-    let bytes = phonotactic.normalized.as_bytes();
-    let valid = !bytes.is_empty()
-        && phonotactic.normalized.is_ascii()
-        && bytes.iter().all(u8::is_ascii_lowercase)
-        && (4..=12).contains(&bytes.len());
+    analyze_brand_with_policy(input, profile, RejectionPolicy::default())
+}
 
-    if !valid {
+/// Analyzes a name with caller-provided hard-reject data.
+///
+/// A blocked name bypasses phonotactic, deterministic, and future fuzzy
+/// evaluation and always returns an overall score of zero.
+#[must_use]
+pub fn analyze_brand_with_policy(
+    input: &str,
+    profile: LanguageProfile,
+    rejection_policy: RejectionPolicy<'_>,
+) -> BrandReport {
+    let rejection = evaluate_rejection(input, rejection_policy);
+    if rejection.hard_reject {
+        let normalized = input.trim().to_ascii_lowercase();
         return BrandReport {
-            normalized: phonotactic.normalized,
+            normalized,
             profile: String::from(profile.id),
+            hard_reject: true,
+            reject_reason: rejection.reason,
             overall_score: 0,
             accepted: false,
-            scores: ScoreBreakdown {
-                pronounceability: 0,
-                rhythm: 0,
-                vowel_balance: 0,
-                repetition: 0,
-                transition_quality: 0,
-            },
-            warnings: phonotactic.warnings,
+            scores: ScoreBreakdown::ZERO,
+            warnings: rejection
+                .reason
+                .map(rejection_warning)
+                .into_iter()
+                .map(String::from)
+                .collect(),
         };
     }
 
+    let phonotactic = analyze_name(input);
+    let bytes = phonotactic.normalized.as_bytes();
     let scores = ScoreBreakdown {
         pronounceability: phonotactic.score,
         rhythm: rhythm_score(bytes),
@@ -113,10 +139,22 @@ pub fn analyze_brand_with_profile(input: &str, profile: LanguageProfile) -> Bran
     BrandReport {
         normalized: phonotactic.normalized,
         profile: String::from(profile.id),
+        hard_reject: false,
+        reject_reason: None,
         overall_score,
         accepted: phonotactic.accepted && overall_score >= profile.acceptance_threshold,
         scores,
         warnings,
+    }
+}
+
+const fn rejection_warning(reason: RejectReason) -> &'static str {
+    match reason {
+        RejectReason::InvalidInput => "invalid input is not eligible for evaluation",
+        RejectReason::ExcessiveRepetition => {
+            "excessive character repetition forces a hard rejection"
+        }
+        RejectReason::AlreadyInUse => "the name is already in use and cannot be evaluated",
     }
 }
 
@@ -253,7 +291,8 @@ fn is_vowel(byte: u8) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::analyze_brand;
+    use super::{INTERNATIONAL_TECH_V1, analyze_brand, analyze_brand_with_policy};
+    use crate::rejection::{RejectReason, RejectionPolicy};
 
     #[test]
     fn clean_candidate_exposes_full_score_breakdown() {
@@ -261,6 +300,8 @@ mod tests {
 
         assert_eq!(report.normalized, "danoti");
         assert_eq!(report.profile, "international-tech-v1");
+        assert!(!report.hard_reject);
+        assert_eq!(report.reject_reason, None);
         assert_eq!(report.overall_score, 100);
         assert!(report.accepted);
         assert_eq!(report.scores.pronounceability, 100);
@@ -294,11 +335,27 @@ mod tests {
     }
 
     #[test]
-    fn invalid_input_is_rejected_with_zero_components() {
+    fn invalid_input_is_hard_rejected_with_zero_components() {
         let report = analyze_brand("nova-1");
 
+        assert!(report.hard_reject);
+        assert_eq!(report.reject_reason, Some(RejectReason::InvalidInput));
         assert!(!report.accepted);
         assert_eq!(report.overall_score, 0);
-        assert_eq!(report.scores.pronounceability, 0);
+        assert_eq!(report.scores, super::ScoreBreakdown::ZERO);
+    }
+
+    #[test]
+    fn used_name_overrides_an_otherwise_perfect_score() {
+        let policy = RejectionPolicy {
+            blocked_names: &["danoti"],
+        };
+        let report = analyze_brand_with_policy("Danoti", INTERNATIONAL_TECH_V1, policy);
+
+        assert!(report.hard_reject);
+        assert_eq!(report.reject_reason, Some(RejectReason::AlreadyInUse));
+        assert_eq!(report.overall_score, 0);
+        assert!(!report.accepted);
+        assert_eq!(report.scores, super::ScoreBreakdown::ZERO);
     }
 }
