@@ -3,6 +3,7 @@
 mod analysis;
 mod evolution;
 mod fuzzy;
+mod genome;
 mod identity;
 mod phonotactics;
 mod portfolio;
@@ -21,6 +22,10 @@ pub use evolution::{
     ImprovementReport, MutationKind, MutationStep, beam_search, improve,
 };
 pub use fuzzy::{FuzzyInputs, FuzzyReport, LinguisticQuality, Membership, evaluate_fuzzy};
+pub use genome::{
+    GeneValue, GenomeAxis, IDENTITY_GENOME_SCHEMA_VERSION, IdentityGenome, IdentityProvenance,
+    ProvenanceSource, ProvenanceStep,
+};
 pub use identity::{
     EntityId, EntityKind, Identity, IdentityContext, IdentitySeed, ParseEntityIdError,
     ParseEntityKindError,
