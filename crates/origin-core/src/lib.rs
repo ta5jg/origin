@@ -92,10 +92,11 @@ fn seed_start(seed: u64) -> u64 {
     mix(seed) % MAX_CANDIDATES_U64
 }
 
+#[allow(clippy::manual_is_multiple_of)]
 fn seed_step(seed: u64) -> u64 {
     let mut step = (mix(seed ^ 0xA5A5_A5A5_A5A5_A5A5) % MAX_CANDIDATES_U64).max(1);
 
-    while step.is_multiple_of(2) || step.is_multiple_of(5) {
+    while step % 2 == 0 || step % 5 == 0 {
         step += 1;
         if step >= MAX_CANDIDATES_U64 {
             step = 1;
