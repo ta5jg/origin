@@ -1,7 +1,7 @@
 //! Command-line interface for the ORIGIN brand discovery engine.
 
 use clap::{Parser, Subcommand, ValueEnum};
-use origin_core::{GenerateOptions, MAX_CANDIDATES, generate};
+use origin_core::{GenerateOptions, MAX_CANDIDATES, PhonotacticReport, analyze_name, generate};
 
 #[derive(Debug, Parser)]
 #[command(name = "origin", version, about = "Brand discovery engine")]
@@ -21,6 +21,16 @@ enum Command {
         /// Seed for reproducible generation.
         #[arg(long, default_value_t = 1)]
         seed: u64,
+
+        /// Output representation.
+        #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
+        format: OutputFormat,
+    },
+
+    /// Analyze one existing name using the phonotactic engine.
+    Check {
+        /// Name to evaluate.
+        name: String,
 
         /// Output representation.
         #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
@@ -59,25 +69,56 @@ fn main() {
         } => {
             let candidates = generate(GenerateOptions { count, seed });
             match format {
-                OutputFormat::Table => print_table(&candidates),
+                OutputFormat::Table => print_candidate_table(&candidates),
                 OutputFormat::Json => print_json(&candidates),
+            }
+        }
+        Command::Check { name, format } => {
+            let report = analyze_name(&name);
+            match format {
+                OutputFormat::Table => print_check_table(&report),
+                OutputFormat::Json => print_json(&report),
             }
         }
     }
 }
 
-fn print_table(candidates: &[origin_core::Candidate]) {
-    println!("rank\tscore\tname");
+fn print_candidate_table(candidates: &[origin_core::Candidate]) {
+    println!("rank\tscore\tphonetics\taccepted\tname");
     for (index, candidate) in candidates.iter().enumerate() {
-        println!("{}\t{}\t{}", index + 1, candidate.score, candidate.name);
+        println!(
+            "{}\t{}\t{}\t{}\t{}",
+            index + 1,
+            candidate.score,
+            candidate.phonotactic_score,
+            yes_no(candidate.accepted),
+            candidate.name
+        );
     }
 }
 
-fn print_json(candidates: &[origin_core::Candidate]) {
-    match serde_json::to_string_pretty(candidates) {
+fn print_check_table(report: &PhonotacticReport) {
+    println!("name\t{}", report.normalized);
+    println!("phonotactic_score\t{}", report.score);
+    println!("accepted\t{}", yes_no(report.accepted));
+    if report.warnings.is_empty() {
+        println!("warnings\tnone");
+    } else {
+        for warning in &report.warnings {
+            println!("warning\t{warning}");
+        }
+    }
+}
+
+fn yes_no(value: bool) -> &'static str {
+    if value { "yes" } else { "no" }
+}
+
+fn print_json<T: serde::Serialize>(value: &T) {
+    match serde_json::to_string_pretty(value) {
         Ok(json) => println!("{json}"),
         Err(error) => {
-            eprintln!("failed to serialize candidates: {error}");
+            eprintln!("failed to serialize output: {error}");
             std::process::exit(1);
         }
     }
