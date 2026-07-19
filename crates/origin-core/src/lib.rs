@@ -1,15 +1,12 @@
 //! Core generation and scoring primitives for ORIGIN.
 
 use serde::Serialize;
-use std::collections::HashSet;
 
-const ONSETS: &[&str] = &[
-    "b", "d", "f", "g", "k", "l", "m", "n", "p", "r", "s", "t", "v", "z", "br", "dr",
-    "kr", "ly", "ny", "vr",
-];
-const NUCLEI: &[&str] = &["a", "e", "i", "o", "u", "ae", "ai", "eo", "ia", "io"];
-const MEDIALS: &[&str] = &["l", "m", "n", "r", "s", "v", "x", "th"];
-const CODAS: &[&str] = &["a", "e", "i", "o", "on", "or", "en", "is", "um", "yn"];
+const ONSETS: &[u8; 20] = b"bdfgklmnprstvwxyzchj";
+const VOWELS: &[u8; 5] = b"aeiou";
+const SYLLABLE_RADIX: usize = ONSETS.len() * VOWELS.len();
+/// Maximum number of unique three-syllable candidates in the current model.
+pub const MAX_CANDIDATES: usize = SYLLABLE_RADIX * SYLLABLE_RADIX * SYLLABLE_RADIX;
 
 /// A generated brand-name candidate and its preliminary structural score.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -25,7 +22,7 @@ pub struct Candidate {
 pub struct GenerateOptions {
     /// Maximum number of unique candidates to return.
     pub count: usize,
-    /// Seed used by the deterministic pseudo-random sequence.
+    /// Seed used to choose a deterministic traversal through the name space.
     pub seed: u64,
 }
 
@@ -37,33 +34,28 @@ impl Default for GenerateOptions {
 
 /// Generates unique candidates using deterministic phoneme composition.
 ///
-/// The current implementation is intentionally compact. It validates the
-/// workspace architecture and CLI contract before the evolutionary generator
-/// and language-specific models are introduced.
+/// The current model uses three fixed-width consonant-vowel syllables. This
+/// creates exactly one million unique six-letter candidates while preserving
+/// reproducibility and constant-time candidate construction.
+///
+/// Requests larger than [`MAX_CANDIDATES`] are capped at that limit.
 #[must_use]
 pub fn generate(options: GenerateOptions) -> Vec<Candidate> {
-    let mut rng = SplitMix64::new(options.seed);
-    let mut seen = HashSet::with_capacity(options.count);
-    let mut candidates = Vec::with_capacity(options.count);
-    let attempt_limit = options.count.saturating_mul(40).max(100);
+    let count = options.count.min(MAX_CANDIDATES);
+    let start = seed_start(options.seed);
+    let step = seed_step(options.seed);
 
-    for _ in 0..attempt_limit {
-        if candidates.len() >= options.count {
-            break;
-        }
-
-        let name = compose(&mut rng);
-        if !is_structurally_valid(&name) || !seen.insert(name.clone()) {
-            continue;
-        }
-
+    let mut candidates = Vec::with_capacity(count);
+    for offset in 0..count {
+        let index = (start + offset * step) % MAX_CANDIDATES;
+        let name = compose_from_index(index);
         candidates.push(Candidate {
             score: structural_score(&name),
             name,
         });
     }
 
-    candidates.sort_by(|left, right| {
+    candidates.sort_unstable_by(|left, right| {
         right
             .score
             .cmp(&left.score)
@@ -72,75 +64,80 @@ pub fn generate(options: GenerateOptions) -> Vec<Candidate> {
     candidates
 }
 
-fn compose(rng: &mut SplitMix64) -> String {
-    let onset = choose(ONSETS, rng);
-    let nucleus = choose(NUCLEI, rng);
-    let medial = choose(MEDIALS, rng);
-    let coda = choose(CODAS, rng);
-    format!("{onset}{nucleus}{medial}{coda}")
+fn compose_from_index(mut index: usize) -> String {
+    let mut bytes = [0_u8; 6];
+
+    for syllable_position in (0..3).rev() {
+        let syllable = index % SYLLABLE_RADIX;
+        index /= SYLLABLE_RADIX;
+
+        let onset = ONSETS[syllable / VOWELS.len()];
+        let vowel = VOWELS[syllable % VOWELS.len()];
+        let byte_position = syllable_position * 2;
+        bytes[byte_position] = onset;
+        bytes[byte_position + 1] = vowel;
+    }
+
+    String::from_utf8(bytes.to_vec()).expect("the phoneme table contains ASCII only")
 }
 
-fn choose<'a>(values: &'a [&str], rng: &mut SplitMix64) -> &'a str {
-    let index = (rng.next() as usize) % values.len();
-    values[index]
+fn seed_start(seed: u64) -> usize {
+    (mix(seed) as usize) % MAX_CANDIDATES
 }
 
-fn is_structurally_valid(name: &str) -> bool {
-    let length = name.len();
-    (5..=9).contains(&length)
-        && !name.contains("xxx")
-        && !name.contains("vvv")
-        && !name.contains("tech")
-        && !name.contains("verse")
+fn seed_step(seed: u64) -> usize {
+    let mut step = ((mix(seed ^ 0xA5A5_A5A5_A5A5_A5A5) as usize) % MAX_CANDIDATES).max(1);
+
+    while step.is_multiple_of(2) || step.is_multiple_of(5) {
+        step += 1;
+        if step >= MAX_CANDIDATES {
+            step = 1;
+        }
+    }
+
+    step
+}
+
+const fn mix(mut value: u64) -> u64 {
+    value = (value ^ (value >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    value = (value ^ (value >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    value ^ (value >> 31)
 }
 
 fn structural_score(name: &str) -> u8 {
-    let length_score = match name.len() {
-        6 | 7 => 45,
-        5 | 8 => 38,
-        9 => 30,
-        _ => 15,
+    let bytes = name.as_bytes();
+    let distinct_letters = {
+        let mut seen = [false; 26];
+        for &byte in bytes {
+            seen[usize::from(byte - b'a')] = true;
+        }
+        seen.into_iter().filter(|present| *present).count()
     };
-    let vowel_count = name
-        .bytes()
-        .filter(|byte| matches!(byte, b'a' | b'e' | b'i' | b'o' | b'u'))
-        .count();
-    let vowel_score = match vowel_count {
-        2 | 3 => 35,
-        1 | 4 => 25,
-        _ => 10,
+
+    let diversity_score = match distinct_letters {
+        6 => 45,
+        5 => 40,
+        4 => 32,
+        _ => 20,
     };
-    let ending_score = if name.ends_with(['a', 'e', 'i', 'o', 'n', 'r', 's']) {
-        20
+    let ending_score = if matches!(bytes.last(), Some(b'a' | b'e' | b'i' | b'o' | b'u')) {
+        30
     } else {
-        12
+        20
+    };
+    let repetition_score = if bytes.windows(2).any(|pair| pair[0] == pair[1]) {
+        15
+    } else {
+        25
     };
 
-    (length_score + vowel_score + ending_score).min(100)
-}
-
-#[derive(Debug, Clone, Copy)]
-struct SplitMix64 {
-    state: u64,
-}
-
-impl SplitMix64 {
-    const fn new(seed: u64) -> Self {
-        Self { state: seed }
-    }
-
-    fn next(&mut self) -> u64 {
-        self.state = self.state.wrapping_add(0x9E37_79B9_7F4A_7C15);
-        let mut value = self.state;
-        value = (value ^ (value >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-        value = (value ^ (value >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-        value ^ (value >> 31)
-    }
+    diversity_score + ending_score + repetition_score
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{GenerateOptions, generate};
+    use super::{GenerateOptions, MAX_CANDIDATES, generate};
+    use std::collections::HashSet;
 
     #[test]
     fn generation_is_deterministic() {
@@ -149,16 +146,40 @@ mod tests {
     }
 
     #[test]
-    fn generation_returns_unique_structurally_valid_names() {
-        let candidates = generate(GenerateOptions { count: 500, seed: 7 });
+    fn different_seeds_change_the_traversal() {
+        assert_ne!(
+            generate(GenerateOptions { count: 25, seed: 1 }),
+            generate(GenerateOptions { count: 25, seed: 2 })
+        );
+    }
+
+    #[test]
+    fn generation_returns_requested_unique_names() {
+        let candidates = generate(GenerateOptions {
+            count: 10_000,
+            seed: 7,
+        });
         let unique = candidates
             .iter()
             .map(|candidate| candidate.name.as_str())
-            .collect::<std::collections::HashSet<_>>();
+            .collect::<HashSet<_>>();
 
+        assert_eq!(candidates.len(), 10_000);
         assert_eq!(candidates.len(), unique.len());
         assert!(candidates.iter().all(|candidate| {
-            (5..=9).contains(&candidate.name.len()) && candidate.score <= 100
+            candidate.name.len() == 6
+                && candidate.name.is_ascii()
+                && candidate.score <= 100
         }));
+    }
+
+    #[test]
+    fn requests_are_capped_to_the_available_space() {
+        let candidates = generate(GenerateOptions {
+            count: MAX_CANDIDATES + 1,
+            seed: 9,
+        });
+
+        assert_eq!(candidates.len(), MAX_CANDIDATES);
     }
 }
