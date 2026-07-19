@@ -3,6 +3,7 @@
 mod analysis;
 mod evolution;
 mod fuzzy;
+mod identity;
 mod phonotactics;
 mod portfolio;
 mod rejection;
@@ -20,6 +21,10 @@ pub use evolution::{
     ImprovementReport, MutationKind, MutationStep, beam_search, improve,
 };
 pub use fuzzy::{FuzzyInputs, FuzzyReport, LinguisticQuality, Membership, evaluate_fuzzy};
+pub use identity::{
+    EntityId, EntityKind, Identity, IdentityContext, IdentitySeed, ParseEntityIdError,
+    ParseEntityKindError,
+};
 pub use phonotactics::{PhonotacticReport, analyze_name};
 pub use portfolio::{
     PortfolioCandidate, PortfolioConflict, PortfolioOptions, PortfolioReference, PortfolioReport,
