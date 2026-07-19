@@ -7,6 +7,7 @@ mod fuzzy;
 mod genome;
 mod identity;
 mod language;
+mod name_engine;
 mod phonotactics;
 mod portfolio;
 mod rejection;
@@ -39,6 +40,10 @@ pub use identity::{
 pub use language::{
     LANGUAGE_SYSTEM_SCHEMA_VERSION, LanguageSystem, MorphologyStrategy, SegmentClass,
     SyllablePattern, WordOrder,
+};
+pub use name_engine::{
+    DEFAULT_NAME_CANDIDATES, GenerateName, GeneratedName, NAME_ENGINE_SCHEMA_VERSION,
+    NameCandidate, NameGenerator, NameOrigin,
 };
 pub use phonotactics::{PhonotacticReport, analyze_name};
 pub use portfolio::{
