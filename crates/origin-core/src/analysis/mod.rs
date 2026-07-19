@@ -165,8 +165,9 @@ fn transition_score(bytes: &[u8]) -> u8 {
         penalty += transition_penalty(pair[0], pair[1]);
     }
 
-    for syllables in bytes.windows(4) {
-        if syllables[0..2] == syllables[2..4] {
+    let syllables = bytes.chunks_exact(2).collect::<Vec<_>>();
+    for pair in syllables.windows(2) {
+        if pair[0] == pair[1] {
             penalty += 24;
         }
     }
@@ -177,7 +178,13 @@ fn transition_score(bytes: &[u8]) -> u8 {
         }
     }
 
-    for vowels in bytes.iter().skip(1).step_by(2).collect::<Vec<_>>().windows(2) {
+    for vowels in bytes
+        .iter()
+        .skip(1)
+        .step_by(2)
+        .collect::<Vec<_>>()
+        .windows(2)
+    {
         if vowels[0] == vowels[1] {
             penalty += 5;
         }
@@ -192,13 +199,11 @@ fn transition_penalty(left: u8, right: u8) -> usize {
     }
 
     match (sound_class(left), sound_class(right)) {
-        (SoundClass::Vowel, SoundClass::Vowel) => 8,
         (SoundClass::Stop, SoundClass::Stop) => 12,
         (SoundClass::Fricative, SoundClass::Fricative) => 10,
-        (SoundClass::Nasal, SoundClass::Nasal) => 8,
+        (SoundClass::Vowel, SoundClass::Vowel) | (SoundClass::Nasal, SoundClass::Nasal) => 8,
         (SoundClass::Liquid, SoundClass::Liquid) => 7,
-        (SoundClass::Stop, SoundClass::Fricative)
-        | (SoundClass::Fricative, SoundClass::Stop) => 5,
+        (SoundClass::Stop, SoundClass::Fricative) | (SoundClass::Fricative, SoundClass::Stop) => 5,
         _ => 0,
     }
 }
@@ -277,7 +282,7 @@ mod tests {
     }
 
     #[test]
-    fn repeated_syllable_is_worse_than_repeated_single_phonemes() {
+    fn repeated_aligned_syllable_is_worse_than_partial_repetition() {
         let partial_repetition = analyze_brand("pogoga");
         let repeated_syllable = analyze_brand("folele");
 
