@@ -1,7 +1,7 @@
 //! Command-line interface for the ORIGIN brand discovery engine.
 
 use clap::{Parser, Subcommand, ValueEnum};
-use origin_core::{GenerateOptions, MAX_CANDIDATES, PhonotacticReport, analyze_name, generate};
+use origin_core::{BrandReport, GenerateOptions, MAX_CANDIDATES, analyze_brand, generate};
 
 #[derive(Debug, Parser)]
 #[command(name = "origin", version, about = "Brand discovery engine")]
@@ -27,7 +27,7 @@ enum Command {
         format: OutputFormat,
     },
 
-    /// Analyze one existing name using the phonotactic engine.
+    /// Analyze one existing name using the explainable scoring engine.
     Check {
         /// Name to evaluate.
         name: String,
@@ -74,7 +74,7 @@ fn main() {
             }
         }
         Command::Check { name, format } => {
-            let report = analyze_name(&name);
+            let report = analyze_brand(&name);
             match format {
                 OutputFormat::Table => print_check_table(&report),
                 OutputFormat::Json => print_json(&report),
@@ -84,22 +84,37 @@ fn main() {
 }
 
 fn print_candidate_table(candidates: &[origin_core::Candidate]) {
-    println!("rank\tscore\tphonetics\taccepted\tname");
+    println!(
+        "rank\toverall\tpronounceability\trhythm\tvowels\trepetition\ttransitions\taccepted\tname"
+    );
     for (index, candidate) in candidates.iter().enumerate() {
         println!(
-            "{}\t{}\t{}\t{}\t{}",
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
             index + 1,
             candidate.score,
-            candidate.phonotactic_score,
+            candidate.pronounceability,
+            candidate.rhythm,
+            candidate.vowel_balance,
+            candidate.repetition,
+            candidate.transition_quality,
             yes_no(candidate.accepted),
             candidate.name
         );
     }
 }
 
-fn print_check_table(report: &PhonotacticReport) {
+fn print_check_table(report: &BrandReport) {
     println!("name\t{}", report.normalized);
-    println!("phonotactic_score\t{}", report.score);
+    println!("profile\t{}", report.profile);
+    println!("overall_score\t{}", report.overall_score);
+    println!("pronounceability\t{}", report.scores.pronounceability);
+    println!("rhythm\t{}", report.scores.rhythm);
+    println!("vowel_balance\t{}", report.scores.vowel_balance);
+    println!("repetition\t{}", report.scores.repetition);
+    println!(
+        "transition_quality\t{}",
+        report.scores.transition_quality
+    );
     println!("accepted\t{}", yes_no(report.accepted));
     if report.warnings.is_empty() {
         println!("warnings\tnone");
