@@ -171,8 +171,7 @@ fn phonetic_affinity(replaced: u8, replacement: u8) -> u8 {
 
 const fn vowel_affinity(left: u8, right: u8) -> u8 {
     match (left, right) {
-        (b'a', b'o') | (b'o', b'a') | (b'o', b'u') | (b'u', b'o') => 3,
-        (b'e', b'i') | (b'i', b'e') => 3,
+        (b'a' | b'u', b'o') | (b'o', b'a' | b'u') | (b'e', b'i') | (b'i', b'e') => 3,
         (b'a', b'u') | (b'u', b'a') => 2,
         _ => 1,
     }
