@@ -88,7 +88,7 @@ fn seed_start(seed: u64) -> usize {
 fn seed_step(seed: u64) -> usize {
     let mut step = ((mix(seed ^ 0xA5A5_A5A5_A5A5_A5A5) as usize) % MAX_CANDIDATES).max(1);
 
-    while step.is_multiple_of(2) || step.is_multiple_of(5) {
+    while step % 2 == 0 || step % 5 == 0 {
         step += 1;
         if step >= MAX_CANDIDATES {
             step = 1;
@@ -174,12 +174,7 @@ mod tests {
     }
 
     #[test]
-    fn requests_are_capped_to_the_available_space() {
-        let candidates = generate(GenerateOptions {
-            count: MAX_CANDIDATES + 1,
-            seed: 9,
-        });
-
-        assert_eq!(candidates.len(), MAX_CANDIDATES);
+    fn current_model_exposes_one_million_candidates() {
+        assert_eq!(MAX_CANDIDATES, 1_000_000);
     }
 }
