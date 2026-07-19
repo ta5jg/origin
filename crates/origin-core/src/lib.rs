@@ -1,9 +1,14 @@
 //! Core generation, phonotactic analysis and scoring primitives for ORIGIN.
 
+mod analysis;
 mod phonotactics;
 
 use serde::Serialize;
 
+pub use analysis::{
+    BrandReport, INTERNATIONAL_TECH_V1, LanguageProfile, ScoreBreakdown, analyze_brand,
+    analyze_brand_with_profile,
+};
 pub use phonotactics::{PhonotacticReport, analyze_name};
 
 const ONSETS: &[u8; 20] = b"bdfgklmnprstvwxyzchj";
@@ -14,16 +19,24 @@ const MAX_CANDIDATES_U64: u64 = 1_000_000;
 /// Maximum number of unique three-syllable candidates in the current model.
 pub const MAX_CANDIDATES: usize = SYLLABLE_RADIX * SYLLABLE_RADIX * SYLLABLE_RADIX;
 
-/// A generated brand-name candidate and its preliminary quality scores.
+/// A generated brand-name candidate and its explainable quality scores.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Candidate {
     /// Candidate text in lowercase ASCII.
     pub name: String,
-    /// Combined preliminary score from zero to one hundred.
+    /// Weighted overall score from zero to one hundred.
     pub score: u8,
-    /// Pronounceability-oriented phonotactic score.
-    pub phonotactic_score: u8,
-    /// Whether the candidate passes the current phonotactic threshold.
+    /// Ease of pronunciation according to the phonotactic engine.
+    pub pronounceability: u8,
+    /// Regularity of vowel and consonant alternation.
+    pub rhythm: u8,
+    /// Balance between vowels and consonants.
+    pub vowel_balance: u8,
+    /// Resistance to mechanical letter and bigram repetition.
+    pub repetition: u8,
+    /// Smoothness of adjacent sound-class transitions.
+    pub transition_quality: u8,
+    /// Whether the candidate passes the active profile threshold.
     pub accepted: bool,
 }
 
@@ -64,11 +77,14 @@ pub fn generate(options: GenerateOptions) -> Vec<Candidate> {
         let index = (start + offset * step) % MAX_CANDIDATES_U64;
         let index = usize::try_from(index).unwrap_or_default();
         let name = compose_from_index(index);
-        let structural_score = structural_score(&name);
-        let report = analyze_name(&name);
+        let report = analyze_brand(&name);
         candidates.push(Candidate {
-            score: combined_score(structural_score, report.score),
-            phonotactic_score: report.score,
+            score: report.overall_score,
+            pronounceability: report.scores.pronounceability,
+            rhythm: report.scores.rhythm,
+            vowel_balance: report.scores.vowel_balance,
+            repetition: report.scores.repetition,
+            transition_quality: report.scores.transition_quality,
             accepted: report.accepted,
             name,
         });
@@ -79,6 +95,7 @@ pub fn generate(options: GenerateOptions) -> Vec<Candidate> {
             .accepted
             .cmp(&left.accepted)
             .then_with(|| right.score.cmp(&left.score))
+            .then_with(|| right.repetition.cmp(&left.repetition))
             .then_with(|| left.name.cmp(&right.name))
     });
     candidates
@@ -125,41 +142,6 @@ const fn mix(mut value: u64) -> u64 {
     value ^ (value >> 31)
 }
 
-fn structural_score(name: &str) -> u8 {
-    let bytes = name.as_bytes();
-    let distinct_letters = {
-        let mut seen = [false; 26];
-        for &byte in bytes {
-            seen[usize::from(byte - b'a')] = true;
-        }
-        seen.into_iter().filter(|present| *present).count()
-    };
-
-    let diversity_score = match distinct_letters {
-        6 => 45,
-        5 => 40,
-        4 => 32,
-        _ => 20,
-    };
-    let ending_score = if matches!(bytes.last(), Some(b'a' | b'e' | b'i' | b'o' | b'u')) {
-        30
-    } else {
-        20
-    };
-    let repetition_score = if bytes.windows(2).any(|pair| pair[0] == pair[1]) {
-        15
-    } else {
-        25
-    };
-
-    diversity_score + ending_score + repetition_score
-}
-
-fn combined_score(structural: u8, phonotactic: u8) -> u8 {
-    let weighted = u16::from(structural) * 40 + u16::from(phonotactic) * 60;
-    u8::try_from(weighted / 100).unwrap_or(100)
-}
-
 #[cfg(test)]
 mod tests {
     use super::{GenerateOptions, MAX_CANDIDATES, generate};
@@ -198,7 +180,11 @@ mod tests {
         assert!(candidates.iter().all(|candidate| candidate.name.len() == 6
             && candidate.name.is_ascii()
             && candidate.score <= 100
-            && candidate.phonotactic_score <= 100));
+            && candidate.pronounceability <= 100
+            && candidate.rhythm <= 100
+            && candidate.vowel_balance <= 100
+            && candidate.repetition <= 100
+            && candidate.transition_quality <= 100));
     }
 
     #[test]
