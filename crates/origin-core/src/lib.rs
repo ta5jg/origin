@@ -210,7 +210,11 @@ mod tests {
         let first_rejected = candidates.iter().position(|candidate| !candidate.accepted);
 
         if let Some(index) = first_rejected {
-            assert!(candidates[index..].iter().all(|candidate| !candidate.accepted));
+            assert!(
+                candidates[index..]
+                    .iter()
+                    .all(|candidate| !candidate.accepted)
+            );
         }
     }
 
