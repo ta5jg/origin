@@ -2,7 +2,7 @@
 
 use serde::Serialize;
 
-use crate::fuzzy::{FuzzyInputs, FuzzyReport, LinguisticQuality, evaluate_fuzzy};
+use crate::fuzzy::{FuzzyInputs, FuzzyReport, evaluate_fuzzy};
 use crate::phonotactics::analyze_name;
 use crate::rejection::{RejectReason, RejectionPolicy, evaluate_rejection};
 
@@ -327,7 +327,9 @@ mod tests {
         assert_eq!(report.scores.repetition, 100);
         assert_eq!(report.scores.transition_quality, 100);
 
-        let fuzzy = report.fuzzy.expect("accepted analyses include fuzzy output");
+        let fuzzy = report
+            .fuzzy
+            .expect("accepted analyses include fuzzy output");
         assert_eq!(fuzzy.score, 100);
         assert_eq!(fuzzy.quality, LinguisticQuality::Excellent);
         assert!(fuzzy.confidence >= 90);
