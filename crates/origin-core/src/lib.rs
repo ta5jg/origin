@@ -52,9 +52,7 @@ pub fn generate(options: GenerateOptions) -> Vec<Candidate> {
 
     let mut candidates = Vec::with_capacity(count);
     for offset in 0..count {
-        let offset = u64::try_from(offset).expect("candidate offset fits in u64");
-        let index = (start + offset * step) % MAX_CANDIDATES_U64;
-        let index = usize::try_from(index).expect("candidate index fits in usize");
+        let index = (start + offset * step) % MAX_CANDIDATES;
         let name = compose_from_index(index);
         candidates.push(Candidate {
             score: structural_score(&name),
@@ -88,17 +86,21 @@ fn compose_from_index(mut index: usize) -> String {
     String::from_utf8(bytes.to_vec()).expect("the phoneme table contains ASCII only")
 }
 
-fn seed_start(seed: u64) -> u64 {
-    mix(seed) % MAX_CANDIDATES_U64
+fn bounded_index(value: u64) -> usize {
+    usize::try_from(value % MAX_CANDIDATES_U64).unwrap_or_default()
+}
+
+fn seed_start(seed: u64) -> usize {
+    bounded_index(mix(seed))
 }
 
 #[allow(clippy::manual_is_multiple_of)]
-fn seed_step(seed: u64) -> u64 {
-    let mut step = (mix(seed ^ 0xA5A5_A5A5_A5A5_A5A5) % MAX_CANDIDATES_U64).max(1);
+fn seed_step(seed: u64) -> usize {
+    let mut step = bounded_index(mix(seed ^ 0xA5A5_A5A5_A5A5_A5A5)).max(1);
 
     while step % 2 == 0 || step % 5 == 0 {
         step += 1;
-        if step >= MAX_CANDIDATES_U64 {
+        if step >= MAX_CANDIDATES {
             step = 1;
         }
     }
@@ -177,13 +179,9 @@ mod tests {
 
         assert_eq!(candidates.len(), 10_000);
         assert_eq!(candidates.len(), unique.len());
-        assert!(
-            candidates
-                .iter()
-                .all(|candidate| candidate.name.len() == 6
-                    && candidate.name.is_ascii()
-                    && candidate.score <= 100)
-        );
+        assert!(candidates.iter().all(|candidate| candidate.name.len() == 6
+            && candidate.name.is_ascii()
+            && candidate.score <= 100));
     }
 
     #[test]
