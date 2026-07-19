@@ -61,7 +61,10 @@ pub fn evaluate_rejection(input: &str, policy: RejectionPolicy<'_>) -> Rejection
         return RejectionResult::rejected(RejectReason::InvalidInput);
     }
 
-    if bytes.windows(3).any(|window| window[0] == window[1] && window[1] == window[2]) {
+    if bytes
+        .windows(3)
+        .any(|window| window[0] == window[1] && window[1] == window[2])
+    {
         return RejectionResult::rejected(RejectReason::ExcessiveRepetition);
     }
 

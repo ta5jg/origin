@@ -2,9 +2,7 @@
 
 mod beam;
 
-pub use beam::{
-    BeamCandidate, BeamSearchOptions, BeamSearchReport, MutationStep, beam_search,
-};
+pub use beam::{BeamCandidate, BeamSearchOptions, BeamSearchReport, MutationStep, beam_search};
 
 use std::collections::HashSet;
 

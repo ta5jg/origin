@@ -190,11 +190,12 @@ fn rank_candidates(candidates: &mut [BeamCandidate], seed: u64) {
 }
 
 fn tie_key(name: &str, seed: u64) -> u64 {
-    name.bytes().fold(seed ^ 0x517C_C1B7_2722_0A95, |value, byte| {
-        value
-            .wrapping_mul(0x100_0000_01B3)
-            .wrapping_add(u64::from(byte))
-    })
+    name.bytes()
+        .fold(seed ^ 0x517C_C1B7_2722_0A95, |value, byte| {
+            value
+                .wrapping_mul(0x100_0000_01B3)
+                .wrapping_add(u64::from(byte))
+        })
 }
 
 #[cfg(test)]
@@ -209,7 +210,10 @@ mod tests {
             depth: 2,
             seed: 42,
         };
-        assert_eq!(beam_search("folele", options), beam_search("folele", options));
+        assert_eq!(
+            beam_search("folele", options),
+            beam_search("folele", options)
+        );
     }
 
     #[test]
