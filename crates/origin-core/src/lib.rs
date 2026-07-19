@@ -4,6 +4,7 @@ mod analysis;
 mod evolution;
 mod fuzzy;
 mod phonotactics;
+mod portfolio;
 mod rejection;
 mod similarity;
 mod trademark;
@@ -22,6 +23,10 @@ pub use fuzzy::{
     FuzzyInputs, FuzzyReport, LinguisticQuality, Membership, evaluate_fuzzy,
 };
 pub use phonotactics::{PhonotacticReport, analyze_name};
+pub use portfolio::{
+    PortfolioCandidate, PortfolioConflict, PortfolioOptions, PortfolioReference, PortfolioReport,
+    build_portfolio, famous_mark_context,
+};
 pub use rejection::{
     RejectReason, RejectionPolicy, RejectionResult, evaluate_rejection,
 };
