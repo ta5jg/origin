@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand, ValueEnum};
-use origin_core::{GenerateOptions, generate};
+use origin_core::{GenerateOptions, MAX_CANDIDATES, generate};
 
 #[derive(Debug, Parser)]
 #[command(name = "origin", version, about = "Brand discovery engine")]
@@ -13,7 +13,7 @@ enum Command {
     /// Generate and rank deterministic candidate names.
     Generate {
         /// Maximum number of unique candidates to produce.
-        #[arg(long, default_value_t = 25, value_parser = clap::value_parser!(usize).range(1..=1_000_000))]
+        #[arg(long, default_value_t = 25, value_parser = parse_count)]
         count: usize,
 
         /// Seed for reproducible generation.
@@ -30,6 +30,20 @@ enum Command {
 enum OutputFormat {
     Table,
     Json,
+}
+
+fn parse_count(value: &str) -> Result<usize, String> {
+    let count = value
+        .parse::<usize>()
+        .map_err(|error| format!("invalid candidate count: {error}"))?;
+
+    if (1..=MAX_CANDIDATES).contains(&count) {
+        Ok(count)
+    } else {
+        Err(format!(
+            "candidate count must be between 1 and {MAX_CANDIDATES}"
+        ))
+    }
 }
 
 fn main() {
@@ -64,5 +78,23 @@ fn print_json(candidates: &[origin_core::Candidate]) {
             eprintln!("failed to serialize candidates: {error}");
             std::process::exit(1);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_count;
+
+    #[test]
+    fn count_parser_accepts_supported_bounds() {
+        assert_eq!(parse_count("1"), Ok(1));
+        assert_eq!(parse_count("1000000"), Ok(1_000_000));
+    }
+
+    #[test]
+    fn count_parser_rejects_unsupported_values() {
+        assert!(parse_count("0").is_err());
+        assert!(parse_count("1000001").is_err());
+        assert!(parse_count("not-a-number").is_err());
     }
 }
