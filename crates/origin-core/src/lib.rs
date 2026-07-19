@@ -1,6 +1,7 @@
 //! Core generation, phonotactic analysis and scoring primitives for ORIGIN.
 
 mod analysis;
+mod evolution;
 mod phonotactics;
 
 use serde::Serialize;
@@ -9,6 +10,7 @@ pub use analysis::{
     BrandReport, INTERNATIONAL_TECH_V1, LanguageProfile, ScoreBreakdown, analyze_brand,
     analyze_brand_with_profile,
 };
+pub use evolution::{ImproveOptions, ImprovementCandidate, ImprovementReport, improve};
 pub use phonotactics::{PhonotacticReport, analyze_name};
 
 const ONSETS: &[u8; 20] = b"bdfgklmnprstvwxyzchj";
