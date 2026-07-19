@@ -2,6 +2,7 @@
 
 use serde::Serialize;
 
+use crate::fuzzy::{FuzzyInputs, FuzzyReport, LinguisticQuality, evaluate_fuzzy};
 use crate::phonotactics::analyze_name;
 use crate::rejection::{RejectReason, RejectionPolicy, evaluate_rejection};
 
@@ -43,6 +44,16 @@ impl ScoreBreakdown {
         repetition: 0,
         transition_quality: 0,
     };
+
+    const fn fuzzy_inputs(self) -> FuzzyInputs {
+        FuzzyInputs {
+            pronounceability: self.pronounceability,
+            rhythm: self.rhythm,
+            vowel_balance: self.vowel_balance,
+            repetition: self.repetition,
+            transition_quality: self.transition_quality,
+        }
+    }
 }
 
 /// Complete explainable analysis of one candidate name.
@@ -56,12 +67,14 @@ pub struct BrandReport {
     pub hard_reject: bool,
     /// Reason for a deterministic veto, when one occurred.
     pub reject_reason: Option<RejectReason>,
-    /// Weighted overall score from zero to one hundred.
+    /// Weighted deterministic score from zero to one hundred.
     pub overall_score: u8,
     /// Whether the name passes both phonotactic and overall thresholds.
     pub accepted: bool,
-    /// Individual scoring components.
+    /// Individual deterministic scoring components.
     pub scores: ScoreBreakdown,
+    /// Perceptual fuzzy assessment, omitted when a hard rejection occurs.
+    pub fuzzy: Option<FuzzyReport>,
     /// Human-readable explanations for detected weaknesses.
     pub warnings: Vec<String>,
 }
@@ -80,8 +93,8 @@ pub fn analyze_brand_with_profile(input: &str, profile: LanguageProfile) -> Bran
 
 /// Analyzes a name with caller-provided hard-reject data.
 ///
-/// A blocked name bypasses phonotactic, deterministic, and future fuzzy
-/// evaluation and always returns an overall score of zero.
+/// A blocked name bypasses phonotactic, deterministic, and fuzzy evaluation and
+/// always returns an overall score of zero with no fuzzy report.
 #[must_use]
 pub fn analyze_brand_with_policy(
     input: &str,
@@ -99,6 +112,7 @@ pub fn analyze_brand_with_policy(
             overall_score: 0,
             accepted: false,
             scores: ScoreBreakdown::ZERO,
+            fuzzy: None,
             warnings: rejection
                 .reason
                 .map(rejection_warning)
@@ -118,6 +132,7 @@ pub fn analyze_brand_with_policy(
         transition_quality: transition_score(bytes),
     };
     let overall_score = weighted_overall(scores);
+    let fuzzy = evaluate_fuzzy(scores.fuzzy_inputs());
     let mut warnings = phonotactic.warnings;
 
     if scores.repetition < 75 {
@@ -144,6 +159,7 @@ pub fn analyze_brand_with_policy(
         overall_score,
         accepted: phonotactic.accepted && overall_score >= profile.acceptance_threshold,
         scores,
+        fuzzy: Some(fuzzy),
         warnings,
     }
 }
@@ -292,6 +308,7 @@ fn is_vowel(byte: u8) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{INTERNATIONAL_TECH_V1, analyze_brand, analyze_brand_with_policy};
+    use crate::fuzzy::LinguisticQuality;
     use crate::rejection::{RejectReason, RejectionPolicy};
 
     #[test]
@@ -309,6 +326,11 @@ mod tests {
         assert_eq!(report.scores.vowel_balance, 100);
         assert_eq!(report.scores.repetition, 100);
         assert_eq!(report.scores.transition_quality, 100);
+
+        let fuzzy = report.fuzzy.expect("accepted analyses include fuzzy output");
+        assert_eq!(fuzzy.score, 100);
+        assert_eq!(fuzzy.quality, LinguisticQuality::Excellent);
+        assert!(fuzzy.confidence >= 90);
     }
 
     #[test]
@@ -319,6 +341,10 @@ mod tests {
         assert!(repetitive.scores.repetition < clean.scores.repetition);
         assert!(repetitive.scores.transition_quality < clean.scores.transition_quality);
         assert!(repetitive.overall_score < clean.overall_score);
+        assert!(
+            repetitive.fuzzy.as_ref().expect("fuzzy output").score
+                < clean.fuzzy.as_ref().expect("fuzzy output").score
+        );
         assert!(!repetitive.warnings.is_empty());
     }
 
@@ -343,6 +369,7 @@ mod tests {
         assert!(!report.accepted);
         assert_eq!(report.overall_score, 0);
         assert_eq!(report.scores, super::ScoreBreakdown::ZERO);
+        assert_eq!(report.fuzzy, None);
     }
 
     #[test]
@@ -357,5 +384,6 @@ mod tests {
         assert_eq!(report.overall_score, 0);
         assert!(!report.accepted);
         assert_eq!(report.scores, super::ScoreBreakdown::ZERO);
+        assert_eq!(report.fuzzy, None);
     }
 }
