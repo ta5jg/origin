@@ -30,7 +30,7 @@ pub struct ScoreBreakdown {
     pub vowel_balance: u8,
     /// Resistance to mechanical letter and bigram repetition.
     pub repetition: u8,
-    /// Smoothness of adjacent sound-class transitions.
+    /// Smoothness and diversity of adjacent phoneme transitions.
     pub transition_quality: u8,
 }
 
@@ -104,9 +104,9 @@ pub fn analyze_brand_with_profile(input: &str, profile: LanguageProfile) -> Bran
             "vowel and consonant rhythm is less regular than preferred",
         ));
     }
-    if scores.transition_quality < 70 {
+    if scores.transition_quality < 80 {
         warnings.push(String::from(
-            "adjacent sound transitions may reduce pronunciation flow",
+            "repeated or difficult phoneme transitions reduce pronunciation flow",
         ));
     }
 
@@ -160,14 +160,69 @@ fn repetition_score(bytes: &[u8]) -> u8 {
 
 fn transition_score(bytes: &[u8]) -> u8 {
     let mut penalty = 0_usize;
+
     for pair in bytes.windows(2) {
-        if pair[0] == pair[1] {
-            penalty += 20;
-        } else if is_vowel(pair[0]) == is_vowel(pair[1]) {
-            penalty += if is_vowel(pair[0]) { 6 } else { 8 };
+        penalty += transition_penalty(pair[0], pair[1]);
+    }
+
+    for syllables in bytes.windows(4) {
+        if syllables[0..2] == syllables[2..4] {
+            penalty += 24;
         }
     }
+
+    for onsets in bytes.iter().step_by(2).collect::<Vec<_>>().windows(2) {
+        if onsets[0] == onsets[1] {
+            penalty += 7;
+        }
+    }
+
+    for vowels in bytes.iter().skip(1).step_by(2).collect::<Vec<_>>().windows(2) {
+        if vowels[0] == vowels[1] {
+            penalty += 5;
+        }
+    }
+
     u8::try_from(100_usize.saturating_sub(penalty)).unwrap_or_default()
+}
+
+fn transition_penalty(left: u8, right: u8) -> usize {
+    if left == right {
+        return 25;
+    }
+
+    match (sound_class(left), sound_class(right)) {
+        (SoundClass::Vowel, SoundClass::Vowel) => 8,
+        (SoundClass::Stop, SoundClass::Stop) => 12,
+        (SoundClass::Fricative, SoundClass::Fricative) => 10,
+        (SoundClass::Nasal, SoundClass::Nasal) => 8,
+        (SoundClass::Liquid, SoundClass::Liquid) => 7,
+        (SoundClass::Stop, SoundClass::Fricative)
+        | (SoundClass::Fricative, SoundClass::Stop) => 5,
+        _ => 0,
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SoundClass {
+    Vowel,
+    Stop,
+    Fricative,
+    Nasal,
+    Liquid,
+}
+
+fn sound_class(byte: u8) -> SoundClass {
+    match byte {
+        b'a' | b'e' | b'i' | b'o' | b'u' => SoundClass::Vowel,
+        b'b' | b'd' | b'g' | b'k' | b'p' | b't' => SoundClass::Stop,
+        b'f' | b'h' | b'j' | b's' | b'v' | b'w' | b'x' | b'y' | b'z' | b'c' => {
+            SoundClass::Fricative
+        }
+        b'm' | b'n' => SoundClass::Nasal,
+        b'l' | b'r' => SoundClass::Liquid,
+        _ => SoundClass::Fricative,
+    }
 }
 
 fn repeated_bigram_count(bytes: &[u8]) -> usize {
@@ -216,8 +271,21 @@ mod tests {
         let repetitive = analyze_brand("pogoga");
 
         assert!(repetitive.scores.repetition < clean.scores.repetition);
+        assert!(repetitive.scores.transition_quality < clean.scores.transition_quality);
         assert!(repetitive.overall_score < clean.overall_score);
         assert!(!repetitive.warnings.is_empty());
+    }
+
+    #[test]
+    fn repeated_syllable_is_worse_than_repeated_single_phonemes() {
+        let partial_repetition = analyze_brand("pogoga");
+        let repeated_syllable = analyze_brand("folele");
+
+        assert!(
+            repeated_syllable.scores.transition_quality
+                < partial_repetition.scores.transition_quality
+        );
+        assert!(!repeated_syllable.accepted);
     }
 
     #[test]
