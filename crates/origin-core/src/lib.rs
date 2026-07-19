@@ -1,8 +1,13 @@
 //! Core generation, phonotactic analysis and scoring primitives for ORIGIN.
 
 mod analysis;
+mod blueprint;
 mod evolution;
 mod fuzzy;
+mod genome;
+mod identity;
+mod language;
+mod name_engine;
 mod phonotactics;
 mod portfolio;
 mod rejection;
@@ -15,11 +20,31 @@ pub use analysis::{
     BrandReport, INTERNATIONAL_TECH_V1, LanguageProfile, ScoreBreakdown, analyze_brand,
     analyze_brand_with_policy, analyze_brand_with_profile,
 };
+pub use blueprint::{
+    BlueprintLimits, BlueprintTrait, ExpressionFamily, IDENTITY_BLUEPRINT_SCHEMA_VERSION,
+    IdentityBlueprint,
+};
 pub use evolution::{
     BeamCandidate, BeamSearchOptions, BeamSearchReport, ImproveOptions, ImprovementCandidate,
     ImprovementReport, MutationKind, MutationStep, beam_search, improve,
 };
 pub use fuzzy::{FuzzyInputs, FuzzyReport, LinguisticQuality, Membership, evaluate_fuzzy};
+pub use genome::{
+    GeneValue, GenomeAxis, IDENTITY_GENOME_SCHEMA_VERSION, IdentityGenome, IdentityProvenance,
+    ProvenanceSource, ProvenanceStep,
+};
+pub use identity::{
+    EntityId, EntityKind, Identity, IdentityContext, IdentitySeed, ParseEntityIdError,
+    ParseEntityKindError,
+};
+pub use language::{
+    LANGUAGE_SYSTEM_SCHEMA_VERSION, LanguageSystem, MorphologyStrategy, SegmentClass,
+    SyllablePattern, WordOrder,
+};
+pub use name_engine::{
+    DEFAULT_NAME_CANDIDATES, GenerateName, GeneratedName, NAME_ENGINE_SCHEMA_VERSION,
+    NameCandidate, NameGenerator, NameOrigin,
+};
 pub use phonotactics::{PhonotacticReport, analyze_name};
 pub use portfolio::{
     PortfolioCandidate, PortfolioConflict, PortfolioOptions, PortfolioReference, PortfolioReport,
