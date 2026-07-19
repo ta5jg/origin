@@ -166,14 +166,15 @@ fn print_improvement_table(report: &ImprovementReport) {
     println!("original_score\t{}", report.original.overall_score);
     println!("original_accepted\t{}", yes_no(report.original.accepted));
     println!();
-    println!("rank\toverall\tdelta\taccepted\tchange\tname");
+    println!("rank\toverall\tdelta\taffinity\taccepted\tchange\tname");
 
     for (index, suggestion) in report.suggestions.iter().enumerate() {
         println!(
-            "{}\t{}\t{:+}\t{}\t{}:{}>{}\t{}",
+            "{}\t{}\t{:+}\t{}\t{}\t{}:{}>{}\t{}",
             index + 1,
             suggestion.score,
             suggestion.score_delta,
+            suggestion.phonetic_affinity,
             yes_no(suggestion.accepted),
             suggestion.changed_position,
             suggestion.replaced,
