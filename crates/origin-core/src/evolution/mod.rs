@@ -59,6 +59,12 @@ pub struct ImprovementReport {
 /// Consonant positions are replaced only with supported onsets and vowel
 /// positions only with supported vowels. This preserves the source name's
 /// broad consonant-vowel shape while allowing weaknesses to be repaired.
+///
+/// # Panics
+///
+/// Panics only if an internal mutation table contains non-ASCII bytes. The
+/// built-in tables are static ASCII data, so this cannot occur during normal
+/// operation.
 #[must_use]
 pub fn improve(input: &str, options: ImproveOptions) -> ImprovementReport {
     let original = analyze_brand(input);
@@ -97,8 +103,7 @@ pub fn improve(input: &str, options: ImproveOptions) -> ImprovementReport {
             let report = analyze_brand(&name);
             suggestions.push(ImprovementCandidate {
                 score: report.overall_score,
-                score_delta: i16::from(report.overall_score)
-                    - i16::from(original.overall_score),
+                score_delta: i16::from(report.overall_score) - i16::from(original.overall_score),
                 accepted: report.accepted,
                 changed_position: position,
                 replaced: char::from(bytes[position]),
@@ -114,7 +119,13 @@ pub fn improve(input: &str, options: ImproveOptions) -> ImprovementReport {
             .accepted
             .cmp(&left.accepted)
             .then_with(|| right.score.cmp(&left.score))
-            .then_with(|| right.report.scores.repetition.cmp(&left.report.scores.repetition))
+            .then_with(|| {
+                right
+                    .report
+                    .scores
+                    .repetition
+                    .cmp(&left.report.scores.repetition)
+            })
             .then_with(|| {
                 mutation_tie_key(&left.name, options.seed)
                     .cmp(&mutation_tie_key(&right.name, options.seed))
@@ -130,11 +141,12 @@ pub fn improve(input: &str, options: ImproveOptions) -> ImprovementReport {
 }
 
 fn mutation_tie_key(name: &str, seed: u64) -> u64 {
-    name.bytes().fold(seed ^ 0x9E37_79B9_7F4A_7C15, |value, byte| {
-        value
-            .wrapping_mul(0x100_0000_01B3)
-            .wrapping_add(u64::from(byte))
-    })
+    name.bytes()
+        .fold(seed ^ 0x9E37_79B9_7F4A_7C15, |value, byte| {
+            value
+                .wrapping_mul(0x100_0000_01B3)
+                .wrapping_add(u64::from(byte))
+        })
 }
 
 fn is_vowel(byte: u8) -> bool {
@@ -147,7 +159,10 @@ mod tests {
 
     #[test]
     fn improvement_is_deterministic() {
-        let options = ImproveOptions { count: 10, seed: 42 };
+        let options = ImproveOptions {
+            count: 10,
+            seed: 42,
+        };
         assert_eq!(improve("pogoga", options), improve("pogoga", options));
     }
 
