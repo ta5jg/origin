@@ -1,3 +1,5 @@
+//! Command-line interface for the ORIGIN brand discovery engine.
+
 use clap::{Parser, Subcommand, ValueEnum};
 use origin_core::{GenerateOptions, MAX_CANDIDATES, generate};
 
