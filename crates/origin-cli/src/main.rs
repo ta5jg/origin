@@ -111,10 +111,7 @@ fn print_check_table(report: &BrandReport) {
     println!("rhythm\t{}", report.scores.rhythm);
     println!("vowel_balance\t{}", report.scores.vowel_balance);
     println!("repetition\t{}", report.scores.repetition);
-    println!(
-        "transition_quality\t{}",
-        report.scores.transition_quality
-    );
+    println!("transition_quality\t{}", report.scores.transition_quality);
     println!("accepted\t{}", yes_no(report.accepted));
     if report.warnings.is_empty() {
         println!("warnings\tnone");
