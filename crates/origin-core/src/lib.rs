@@ -9,6 +9,7 @@ pub use phonotactics::{PhonotacticReport, analyze_name};
 const ONSETS: &[u8; 20] = b"bdfgklmnprstvwxyzchj";
 const VOWELS: &[u8; 5] = b"aeiou";
 const SYLLABLE_RADIX: usize = ONSETS.len() * VOWELS.len();
+const MAX_CANDIDATES_U64: u64 = 1_000_000;
 
 /// Maximum number of unique three-syllable candidates in the current model.
 pub const MAX_CANDIDATES: usize = SYLLABLE_RADIX * SYLLABLE_RADIX * SYLLABLE_RADIX;
@@ -59,7 +60,9 @@ pub fn generate(options: GenerateOptions) -> Vec<Candidate> {
 
     let mut candidates = Vec::with_capacity(count);
     for offset in 0..count {
-        let index = (start + offset.wrapping_mul(step)) % MAX_CANDIDATES;
+        let offset = u64::try_from(offset).unwrap_or_default();
+        let index = (start + offset * step) % MAX_CANDIDATES_U64;
+        let index = usize::try_from(index).unwrap_or_default();
         let name = compose_from_index(index);
         let structural_score = structural_score(&name);
         let report = analyze_name(&name);
@@ -98,27 +101,22 @@ fn compose_from_index(mut index: usize) -> String {
     String::from_utf8(bytes.to_vec()).expect("the phoneme table contains ASCII only")
 }
 
-fn seed_start(seed: u64) -> usize {
-    reduced_seed(seed)
+fn seed_start(seed: u64) -> u64 {
+    mix(seed) % MAX_CANDIDATES_U64
 }
 
 #[allow(clippy::manual_is_multiple_of)]
-fn seed_step(seed: u64) -> usize {
-    let mut step = reduced_seed(seed ^ 0xA5A5_A5A5_A5A5_A5A5).max(1);
+fn seed_step(seed: u64) -> u64 {
+    let mut step = (mix(seed ^ 0xA5A5_A5A5_A5A5_A5A5) % MAX_CANDIDATES_U64).max(1);
 
     while step % 2 == 0 || step % 5 == 0 {
         step += 1;
-        if step >= MAX_CANDIDATES {
+        if step >= MAX_CANDIDATES_U64 {
             step = 1;
         }
     }
 
     step
-}
-
-fn reduced_seed(seed: u64) -> usize {
-    let reduced = mix(seed) % 1_000_000;
-    usize::try_from(reduced).unwrap_or_default()
 }
 
 const fn mix(mut value: u64) -> u64 {
