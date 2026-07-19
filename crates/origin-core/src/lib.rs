@@ -6,6 +6,7 @@ mod fuzzy;
 mod phonotactics;
 mod rejection;
 mod similarity;
+mod trademark;
 
 use serde::Serialize;
 
@@ -27,6 +28,11 @@ pub use rejection::{
 pub use similarity::{
     Analyzer, SimilarityAnalyzer, SimilarityReport, SimilarityRisk, SimilarityWeights,
     analyze_similarity, analyze_similarity_with_weights,
+};
+pub use trademark::{
+    MarkStrength, TrademarkAnalyzer, TrademarkContext, TrademarkFactor,
+    TrademarkRecommendation, TrademarkReport, TrademarkRisk, analyze_trademark,
+    analyze_trademark_risk,
 };
 
 const ONSETS: &[u8; 20] = b"bdfgklmnprstvwxyzchj";
