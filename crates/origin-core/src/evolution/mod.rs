@@ -35,6 +35,33 @@ impl Default for ImproveOptions {
     }
 }
 
+/// Semantic category assigned to a one-phoneme mutation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MutationKind {
+    /// Replacement remains inside the same consonant family.
+    RelatedConsonant,
+    /// Replacement follows a close vowel transition.
+    RelatedVowel,
+    /// Replacement follows a secondary vowel transition.
+    ModerateVowel,
+    /// Replacement is structurally valid but phonetically distant.
+    DistantPhoneme,
+}
+
+impl MutationKind {
+    /// Stable human-readable explanation suitable for CLI and API consumers.
+    #[must_use]
+    pub const fn explanation(self) -> &'static str {
+        match self {
+            Self::RelatedConsonant => "replaced with a consonant from the same phonetic family",
+            Self::RelatedVowel => "replaced with a closely related vowel",
+            Self::ModerateVowel => "replaced with a moderately related vowel",
+            Self::DistantPhoneme => "replaced with a structurally valid but distant phoneme",
+        }
+    }
+}
+
 /// One ranked mutation derived from an existing name.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ImprovementCandidate {
@@ -48,6 +75,10 @@ pub struct ImprovementCandidate {
     pub accepted: bool,
     /// Phonetic similarity of the replacement, from one to three.
     pub phonetic_affinity: u8,
+    /// Semantic category of the phonetic replacement.
+    pub mutation_kind: MutationKind,
+    /// Stable explanation of why the replacement belongs to its category.
+    pub explanation: &'static str,
     /// Position changed in the normalized original name.
     pub changed_position: usize,
     /// Original ASCII character at the changed position.
@@ -113,11 +144,14 @@ pub fn improve(input: &str, options: ImproveOptions) -> ImprovementReport {
             }
 
             let report = analyze_brand(&name);
+            let mutation_kind = mutation_kind(replaced, replacement);
             suggestions.push(ImprovementCandidate {
                 score: report.overall_score,
                 score_delta: i16::from(report.overall_score) - i16::from(original.overall_score),
                 accepted: report.accepted,
                 phonetic_affinity: phonetic_affinity(replaced, replacement),
+                mutation_kind,
+                explanation: mutation_kind.explanation(),
                 changed_position: position,
                 replaced: char::from(replaced),
                 replacement: char::from(replacement),
@@ -151,6 +185,15 @@ pub fn improve(input: &str, options: ImproveOptions) -> ImprovementReport {
     ImprovementReport {
         original,
         suggestions,
+    }
+}
+
+fn mutation_kind(replaced: u8, replacement: u8) -> MutationKind {
+    match phonetic_affinity(replaced, replacement) {
+        3 if is_vowel(replaced) => MutationKind::RelatedVowel,
+        3 => MutationKind::RelatedConsonant,
+        2 => MutationKind::ModerateVowel,
+        _ => MutationKind::DistantPhoneme,
     }
 }
 
@@ -192,7 +235,7 @@ fn is_vowel(byte: u8) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{ImproveOptions, improve, phonetic_affinity};
+    use super::{ImproveOptions, MutationKind, improve, mutation_kind, phonetic_affinity};
 
     #[test]
     fn improvement_is_deterministic() {
@@ -238,6 +281,15 @@ mod tests {
         assert_eq!(phonetic_affinity(b'e', b'i'), 3);
         assert_eq!(phonetic_affinity(b'g', b'z'), 1);
         assert_eq!(phonetic_affinity(b'a', b'i'), 1);
+    }
+
+    #[test]
+    fn mutation_categories_are_stable_and_explainable() {
+        assert_eq!(mutation_kind(b'g', b'k'), MutationKind::RelatedConsonant);
+        assert_eq!(mutation_kind(b'e', b'i'), MutationKind::RelatedVowel);
+        assert_eq!(mutation_kind(b'a', b'u'), MutationKind::ModerateVowel);
+        assert_eq!(mutation_kind(b'g', b'z'), MutationKind::DistantPhoneme);
+        assert!(!MutationKind::RelatedConsonant.explanation().is_empty());
     }
 
     #[test]
