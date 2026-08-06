@@ -1,109 +1,351 @@
-# ORIGIN
+# Origin
 
-> Engineering the next legendary technology brand.
+> **A deterministic, explainable, and production-oriented brand name discovery engine written in Rust.**
 
-ORIGIN is an experimental **brand discovery engine** written in Rust. It explores large naming spaces, filters weak candidates, scores phonetic and structural qualities, and prepares promising names for external validation.
+Origin is a high-performance Rust library and CLI for discovering high-quality brand names through deterministic linguistic processing rather than random generation.
 
-ORIGIN is a working codename. One of the project's first long-term goals is to discover and validate its own permanent product name.
+Instead of relying on probabilistic language models or black-box AI, Origin combines morphology, phonotactics, similarity analysis, trademark-aware screening, and explainable scoring into a fully reproducible pipeline.
 
-## Why ORIGIN?
+---
 
-Finding a strong technology brand should not depend on random inspiration alone. ORIGIN treats naming as an engineering problem built from generation, filtering, scoring, similarity analysis, and evidence-based validation.
+## Why Origin?
 
-The project follows one uncompromising principle:
+Choosing a brand name is one of the most important decisions in a product's lifecycle.
 
-> A candidate is not considered unique until it has been checked against relevant public use, domains, repositories, companies, and trademark databases.
+Most existing generators produce thousands of random suggestions without explaining **why** a name is good or whether it is distinguishable from existing brands.
 
-No automated result is a legal opinion or a guarantee of trademark availability.
+Origin was designed with different principles:
 
-## Current milestone
+- Deterministic results
+- Explainable decisions
+- Linguistic correctness
+- Production-ready architecture
+- Reproducible pipelines
+- Test-driven development
 
-**Sprint 0 — Genesis**
+The goal is not to generate *more* names.
 
-The first milestone establishes a clean Rust workspace and a working command-line path:
+The goal is to discover **better** names.
 
-```bash
-cargo run -p origin-cli -- generate --count 25
-```
+---
 
-The initial generator is deliberately small and deterministic. It exists to validate the architecture before more advanced phonetic, evolutionary, similarity, domain, and trademark modules are added.
+## Features
 
-## Planned pipeline
+### Deterministic Generation
 
-```text
-Candidate Generation
-        ↓
-Structural Filtering
-        ↓
-Phonetic Scoring
-        ↓
-Similarity Analysis
-        ↓
-External Validation
-        ↓
-Human Review
-```
+The same input always produces the same output.
 
-## Workspace
+No hidden randomness.
 
-```text
+No AI hallucinations.
+
+Fully reproducible results.
+
+---
+
+### Unicode-Aware Normalization
+
+Origin normalizes roots from multiple writing systems into canonical ASCII forms while preserving linguistic intent.
+
+Supported transformations include:
+
+- Case folding
+- Diacritic removal
+- Historical transliterations
+- Turkish characters
+- Akkadian transliterations
+- Unicode combining marks
+- Ligature expansion
+
+---
+
+### Morphological Processing
+
+Origin contains a dedicated morphology engine capable of:
+
+- Root normalization
+- Intelligent root merging
+- Boundary-overlap detection
+- Duplicate syllable removal
+- Configurable collapse policies
+- Provenance tracking
+
+Example:
+
+'''
+velora
+oralis
+
+↓
+
+veloralis
+'''
+
+instead of
+
+'''
+veloraoralis
+'''
+
+---
+
+### Explainable Transformations
+
+Every transformation can expose its provenance.
+
+Example:
+
+'''
+left:normalize:Š>s
+right:normalize:Ō>o
+merge:collapse:boundary-overlap:or
+'''
+
+Every normalization step is deterministic and inspectable.
+
+---
+
+### Candidate Analysis
+
+Each candidate can be evaluated through multiple independent components, including:
+
+- Pronounceability
+- Similarity
+- Morphological quality
+- Brand quality
+- Repetition analysis
+- Trademark screening
+- Portfolio diversity
+
+---
+
+### Similarity Analysis
+
+Origin combines several techniques to reduce collision risk:
+
+- Damerau-Levenshtein distance
+- Prefix similarity
+- Suffix similarity
+- N-gram comparison
+- Phonetic folding
+- Unicode confusable detection
+- Visual confusable detection
+
+---
+
+### Trademark Screening
+
+Origin performs deterministic trademark-oriented risk estimation.
+
+The engine distinguishes between:
+
+- Critical
+- High
+- Medium
+- Low
+- Provisionally clear
+
+screening outcomes while remaining explainable.
+
+---
+
+### Beam Search
+
+Origin supports deterministic beam-search based candidate exploration.
+
+The search engine prioritizes:
+
+- linguistic quality
+- explainability
+- reproducibility
+- stable ranking
+
+---
+
+## Architecture
+
+'''
+                Raw Roots
+                    │
+                    ▼
+          Unicode Normalization
+                    │
+                    ▼
+           Morphology Merge
+                    │
+                    ▼
+          Boundary Collapse
+                    │
+                    ▼
+             Mutation Engine
+                    │
+                    ▼
+          Candidate Evaluation
+                    │
+                    ▼
+          Similarity Analysis
+                    │
+                    ▼
+         Trademark Screening
+                    │
+                    ▼
+           Portfolio Ranking
+                    │
+                    ▼
+          Final Candidates
+'''
+
+Every stage is deterministic.
+
+Every stage is independently testable.
+
+---
+
+## Project Structure
+
+'''
 origin/
 ├── crates/
-│   ├── origin-core/   # Domain logic, generation and scoring
-│   └── origin-cli/    # Command-line interface
-├── docs/              # Design documents
-├── .github/workflows/ # Continuous integration
-├── Cargo.toml
+│   ├── origin-core
+│   └── origin-cli
+├── tests/
+├── examples/
+├── docs/
 └── README.md
-```
+'''
 
-## Development
+---
 
-Requirements:
+## Design Principles
 
-- Rust stable with Rust 2024 edition support
-- Cargo
+Origin follows several engineering principles:
 
-Run all checks:
+- Deterministic by default
+- Explainability over opacity
+- Zero hidden state
+- Small composable modules
+- Test-driven implementation
+- Stable APIs
+- Explicit error handling
+
+---
+
+## Example
 
 ```bash
-cargo fmt --all -- --check
+origin generate --count 20
+```
+
+```text
+Velora
+Avenor
+Korvex
+Calith
+Sorevia
+Nirel
+...
+```
+
+---
+
+## Quality
+
+Current project status:
+
+- Deterministic generation
+- Deterministic morphology
+- Unicode-aware normalization
+- Boundary-overlap engine
+- Explainable provenance
+- Merge engine
+- Collapse engine
+- Mutation engine
+- Similarity analysis
+- Trademark screening
+- Beam search
+- Portfolio generation
+- Comprehensive unit tests
+- Zero Clippy warnings
+- Fully formatted (`cargo fmt`)
+
+---
+
+## Testing
+
+```bash
+cargo fmt --all
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
 ```
 
-Generate candidates:
+Origin is developed under a strict quality policy:
 
-```bash
-cargo run -p origin-cli -- generate --count 100 --seed 42
-```
-
-Generate JSON:
-
-```bash
-cargo run -p origin-cli -- generate --count 25 --format json
-```
-
-## Engineering principles
-
-- Uniqueness before attachment
-- Evidence before claims
-- Deterministic and testable core logic
-- Clippy-clean and rustfmt-clean code
-- No undocumented public API
-- Human review remains part of every final naming decision
-- External validation is a risk screen, not legal clearance
-
-## Roadmap
-
-See [ROADMAP.md](ROADMAP.md).
-
-## License
-
-Licensed under the MIT License. See [LICENSE](LICENSE).
+- formatting must pass
+- Clippy must report zero warnings
+- every change must be covered by tests
+- deterministic behavior is required
 
 ---
 
-The next generation of technology companies deserves better names.
+## Roadmap
 
-**ORIGIN exists to help discover them.**
+### Completed
+
+- Unicode normalization
+- Morphology engine
+- Merge engine
+- Collapse engine
+- Mutation engine
+- Similarity analysis
+- Trademark screening
+- Beam search
+- Portfolio generation
+- Explainable provenance
+
+### Planned
+
+- Advanced semantic reasoning
+- Strategy-based evaluation pipeline
+- Plugin architecture
+- International language packs
+- Additional trademark integrations
+- Performance benchmarking
+- Public API stabilization
+
+---
+
+## Philosophy
+
+Origin is not intended to be "just another name generator."
+
+It is designed to become an explainable brand discovery engine suitable for professional product development.
+
+Every generated candidate should be:
+
+- pronounceable
+- memorable
+- linguistically consistent
+- explainable
+- reproducible
+- suitable for further legal and commercial review
+
+---
+
+## Contributing
+
+Contributions are welcome.
+
+Please ensure that every contribution:
+
+- passes `cargo fmt`
+- passes `cargo clippy -D warnings`
+- passes all tests
+- preserves deterministic behavior
+
+---
+
+## License
+
+This project is released under the MIT License.
+
+See the `LICENSE` file for details.
