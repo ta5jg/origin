@@ -243,7 +243,6 @@ Korvex
 Calith
 Sorevia
 Nirel
-...
 ```
 
 ---
