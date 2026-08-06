@@ -1,0 +1,12 @@
+{
+  "_origin_file_header": {
+    "file": "fixtures/validation/domain_available.json",
+    "project": "Origin",
+    "author": "USDTG GROUP TECHNOLOGY LLC",
+    "developer": "Irfan Gedik",
+    "created_date": "2026-08-06",
+    "version": "0.1.0",
+    "description": "Defines external collision screening and evidence contracts.",
+    "license": "Origin License v1.0 — see LICENSE in the repository root."
+  }
+}

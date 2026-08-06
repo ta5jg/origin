@@ -1,0 +1,46 @@
+# ==============================================================================
+# File:           campaigns/logistics-platform-v1.toml
+# Project:        Origin
+# Author:         USDTG GROUP TECHNOLOGY LLC
+# Developer:      Irfan Gedik
+# Created Date:   2026-08-06
+# Version:        0.1.0
+#
+# Description:
+#   Defines the first executable naming campaign for the logistics platform.
+#
+# License:
+#   Origin License v1.0 — see LICENSE in the repository root.
+# ==============================================================================
+
+[campaign]
+id = "logistics-platform-v1"
+count = 1000
+seed = 42
+min_length = 5
+max_length = 9
+
+[generation]
+modes = ["synthetic", "ancient", "hybrid", "mutation"]
+languages = ["sumerian", "akkadian", "old-turkic", "latin", "sanskrit"]
+
+[qualities]
+trust = 95
+movement = 95
+intelligence = 90
+longevity = 95
+enterprise = 100
+playful = 10
+
+[constraints]
+ascii_only = true
+easy_pronunciation = true
+easy_spelling = true
+product_family_compatible = true
+
+[validation]
+domain_tlds = ["com", "io", "ai"]
+github = true
+crates_io = true
+npm = true
+web_collision = true

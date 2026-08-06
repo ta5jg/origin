@@ -1,8 +1,11 @@
 //! Core generation, phonotactic analysis and scoring primitives for ORIGIN.
 
 mod analysis;
+mod candidate;
 mod evolution;
 mod fuzzy;
+mod language;
+mod morphology;
 mod phonotactics;
 mod portfolio;
 mod rejection;
@@ -10,6 +13,30 @@ mod similarity;
 mod trademark;
 
 use serde::Serialize;
+
+pub use candidate::{
+    CANDIDATE_SCHEMA_VERSION, CandidateInvariantError, CandidateRecord, CandidateScores,
+    GenerationMode, RejectionCode, RejectionReason, RootLanguage, RootProvenance,
+    ValidationEvidence, ValidationStatus,
+};
+
+pub use language::{
+    ConfidenceBasis, LANGUAGE_CATALOG_SCHEMA_VERSION, LANGUAGE_ROOT_SCHEMA_VERSION,
+    LanguageCatalog, LanguageCatalogError, LanguageId, LanguageRoot, LanguageRootError,
+    MeaningCategory, MeaningInterpretation, RootConfidence, RootMeaning, RootQuery, RootSource,
+    SourceKind, Transliteration,
+};
+
+pub use morphology::{
+    CollapseChange, CollapseError, CollapseKind, CollapsePolicy, CollapseReport,
+    DEFAULT_MAXIMUM_MUTATION_LENGTH, DEFAULT_MINIMUM_MUTATION_LENGTH, MAX_BOUNDARY_OVERLAP,
+    MergeError, MergePolicy, MergeReport, MergeStage, MorphMutationKind, MutationChange,
+    MutationError, MutationPolicy, MutationReport, NormalizationChange, NormalizationChangeKind,
+    NormalizationError, NormalizationMode, NormalizationPolicy, NormalizationReport,
+    collapse_roots, collapse_roots_with_policy, is_canonical_root, merge_roots,
+    merge_roots_with_policy, mutate_root, mutate_root_with_kind, mutate_root_with_policy,
+    normalize_root, normalize_root_with_policy,
+};
 
 pub use analysis::{
     BrandReport, INTERNATIONAL_TECH_V1, LanguageProfile, ScoreBreakdown, analyze_brand,
