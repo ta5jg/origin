@@ -103,6 +103,17 @@ merge:collapse:boundary-overlap:or
 
 Every normalization step is deterministic and inspectable.
 
+### Semantic Roots and Composition
+
+The initial source-backed semantic catalog is intentionally small and reviewable.
+List its roots, then compose any two identifiers into a candidate whose root meaning,
+morphology provenance, and scoring rationale are shown together.
+
+```bash
+origin roots
+origin compose latin-lux latin-via
+```
+
 ---
 
 ### Candidate Analysis
@@ -146,6 +157,20 @@ The engine distinguishes between:
 - Provisionally clear
 
 screening outcomes while remaining explainable.
+
+### Availability Screening
+
+Origin can check public GitHub namespaces, crates.io, npm, PyPI, and standard
+domain TLDs (`.com`, `.net`, `.org`, `.io`, `.ai`, `.app`, `.dev`, `.co`). Each
+online response includes its source URL and a Unix-millisecond evidence timestamp.
+An unavailable or failed source is reported as `Unknown`; it is never reported as
+available.
+
+```bash
+origin availability qarvan --all
+origin availability qarvan --domain com --domain io --json qarvan-availability.json
+origin availability qarvan --all --offline
+```
 
 ---
 

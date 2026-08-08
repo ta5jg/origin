@@ -1,11 +1,13 @@
 //! Command-line interface for the ORIGIN brand discovery engine.
 
+mod commands;
+
 use clap::{Parser, Subcommand, ValueEnum};
 use origin_core::{
-    BeamSearchOptions, BeamSearchReport, BrandReport, GenerateOptions, ImproveOptions,
-    ImprovementReport, MAX_CANDIDATES, MarkStrength, SimilarityReport, TrademarkContext,
-    TrademarkReport, analyze_brand, analyze_similarity, analyze_trademark_risk, beam_search,
-    generate, improve,
+    BeamSearchOptions, BeamSearchReport, BrandReport, DesignOptions, DesignedCandidate,
+    ImproveOptions, ImprovementReport, MAX_DESIGN_CANDIDATES, MarkStrength, SimilarityReport,
+    TrademarkContext, TrademarkReport, analyze_brand, analyze_similarity, analyze_trademark_risk,
+    beam_search, built_in_catalog, compose_builtin, design_brands, improve,
 };
 
 #[derive(Debug, Parser)]
@@ -17,15 +19,54 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Generate and rank deterministic candidate names.
+    /// Screen a candidate against supported registries without direct network access.
+    Availability(commands::availability::AvailabilityCommand),
+
+    /// List the source-backed semantic roots available to the built-in composer.
+    Roots {
+        /// Output representation.
+        #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
+        format: OutputFormat,
+    },
+
+    /// Compose two built-in semantic root identifiers into an explainable candidate.
+    Compose {
+        /// Left root identifier, listed by `origin roots`.
+        left: String,
+
+        /// Right root identifier, listed by `origin roots`.
+        right: String,
+
+        /// Output representation.
+        #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
+        format: OutputFormat,
+    },
+
+    /// Design and rank deterministic candidate names from four strategies.
     Generate {
-        /// Maximum number of unique candidates to produce.
+        /// Maximum number of candidates to produce, up to ten thousand.
         #[arg(long, default_value_t = 25, value_parser = parse_count)]
         count: usize,
 
         /// Seed for reproducible generation.
         #[arg(long, default_value_t = 1)]
         seed: u64,
+
+        /// Desired meaning or theme; can be repeated or comma-separated.
+        #[arg(long, value_delimiter = ',')]
+        meaning: Vec<String>,
+
+        /// Explicit semantic root identifiers; can be repeated or comma-separated.
+        #[arg(long, value_delimiter = ',')]
+        roots: Vec<String>,
+
+        /// Industry cue, for example `ai`, `logistics`, or `finance`.
+        #[arg(long)]
+        industry: Option<String>,
+
+        /// Live-screen this many top-ranked candidates and print clearance evidence.
+        #[arg(long, value_parser = parse_finalist_count)]
+        finalists: Option<usize>,
 
         /// Output representation.
         #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
@@ -155,11 +196,15 @@ impl From<CliMarkStrength> for MarkStrength {
 }
 
 fn parse_count(value: &str) -> Result<usize, String> {
-    parse_bounded_count(value, MAX_CANDIDATES, "candidate")
+    parse_bounded_count(value, MAX_DESIGN_CANDIDATES, "candidate")
 }
 
 fn parse_improvement_count(value: &str) -> Result<usize, String> {
     parse_bounded_count(value, 1_000, "improvement")
+}
+
+fn parse_finalist_count(value: &str) -> Result<usize, String> {
+    parse_bounded_count(value, 10, "finalist")
 }
 
 fn parse_beam_width(value: &str) -> Result<usize, String> {
@@ -186,17 +231,22 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
+        Command::Availability(command) => run_availability(command),
+        Command::Roots { format } => print_roots(format),
+        Command::Compose {
+            left,
+            right,
+            format,
+        } => compose_roots(&left, &right, format),
         Command::Generate {
             count,
             seed,
+            meaning,
+            roots,
+            industry,
+            finalists,
             format,
-        } => {
-            let candidates = generate(GenerateOptions { count, seed });
-            match format {
-                OutputFormat::Table => print_candidate_table(&candidates),
-                OutputFormat::Json => print_json(&candidates),
-            }
-        }
+        } => run_generate(count, seed, meaning, roots, industry, finalists, format),
         Command::Check { name, format } => {
             let report = analyze_brand(&name);
             match format {
@@ -276,24 +326,166 @@ fn main() {
     }
 }
 
-fn print_candidate_table(candidates: &[origin_core::Candidate]) {
-    println!(
-        "rank\toverall\tpronounceability\trhythm\tvowels\trepetition\ttransitions\taccepted\tname"
-    );
+fn run_availability(command: commands::availability::AvailabilityCommand) {
+    match command.run() {
+        Ok(report) => commands::availability::print_table(&report),
+        Err(error) => {
+            eprintln!("availability check failed: {error}");
+            std::process::exit(2);
+        }
+    }
+}
+
+fn run_generate(
+    count: usize,
+    seed: u64,
+    meanings: Vec<String>,
+    roots: Vec<String>,
+    industry: Option<String>,
+    finalists: Option<usize>,
+    format: OutputFormat,
+) {
+    let options = DesignOptions {
+        count,
+        seed,
+        meanings,
+        industry,
+        roots,
+    };
+    let candidates = design_brands(&options);
+    if let Some(finalists) = finalists {
+        let reports = candidates
+            .into_iter()
+            .take(finalists)
+            .map(|candidate| {
+                commands::availability::live_report(&candidate.name).map(|availability| {
+                    FinalistReport {
+                        candidate,
+                        availability,
+                    }
+                })
+            })
+            .collect::<Result<Vec<_>, _>>();
+        match reports {
+            Ok(reports) => match format {
+                OutputFormat::Table => print_finalist_table(&reports),
+                OutputFormat::Json => print_json(&reports),
+            },
+            Err(error) => {
+                eprintln!("finalist clearance failed: {error}");
+                std::process::exit(2);
+            }
+        }
+        return;
+    }
+    match format {
+        OutputFormat::Table => print_designed_candidates_table(&candidates),
+        OutputFormat::Json => print_json(&candidates),
+    }
+}
+
+#[derive(Debug, serde::Serialize)]
+struct FinalistReport {
+    candidate: DesignedCandidate,
+    availability: origin_core::AvailabilityReport,
+}
+
+fn print_roots(format: OutputFormat) {
+    let catalog = built_in_catalog();
+    match format {
+        OutputFormat::Table => print_roots_table(&catalog),
+        OutputFormat::Json => print_json(&catalog.iter().collect::<Vec<_>>()),
+    }
+}
+
+fn compose_roots(left: &str, right: &str, format: OutputFormat) {
+    match compose_builtin(left, right) {
+        Ok(composition) => match format {
+            OutputFormat::Table => print_composition_table(&composition),
+            OutputFormat::Json => print_json(&composition),
+        },
+        Err(error) => {
+            eprintln!("semantic composition failed: {error}");
+            std::process::exit(2);
+        }
+    }
+}
+
+fn print_designed_candidates_table(candidates: &[DesignedCandidate]) {
+    println!("rank\tdesign\toverall\ttypography\tstrategy\taccepted\tinspiration\tname");
     for (index, candidate) in candidates.iter().enumerate() {
         println!(
-            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+            "{}\t{}\t{}\t{}\t{:?}\t{}\t{}\t{}",
             index + 1,
-            candidate.score,
-            candidate.pronounceability,
-            candidate.rhythm,
-            candidate.vowel_balance,
-            candidate.repetition,
-            candidate.transition_quality,
-            yes_no(candidate.accepted),
+            candidate.design_score,
+            candidate.analysis.overall_score,
+            candidate.typography_score,
+            candidate.strategy,
+            yes_no(candidate.analysis.accepted),
+            candidate.inspiration.join(" + "),
             candidate.name
         );
     }
+}
+
+fn print_finalist_table(reports: &[FinalistReport]) {
+    println!("rank\tdesign\tstrategy\tclear\ttaken\tunknown\tname");
+    for (index, report) in reports.iter().enumerate() {
+        let unknown = report
+            .availability
+            .results
+            .iter()
+            .filter(|result| result.status == origin_core::AvailabilityStatus::Unknown)
+            .count();
+        println!(
+            "{}\t{}\t{:?}\t{}\t{}\t{}\t{}",
+            index + 1,
+            report.candidate.design_score,
+            report.candidate.strategy,
+            yes_no(report.availability.is_clear()),
+            report.availability.taken_count(),
+            unknown,
+            report.candidate.name
+        );
+    }
+}
+
+fn print_roots_table(catalog: &origin_core::LanguageCatalog) {
+    println!("id\tlanguage\troot\tmeaning\tconfidence\tsource");
+    for root in catalog.iter() {
+        let meaning = root
+            .meanings
+            .first()
+            .map_or("-", |meaning| meaning.gloss.as_str());
+        let source = root
+            .sources
+            .first()
+            .map_or("-", |source| source.title.as_str());
+        println!(
+            "{}\t{}\t{}\t{}\t{}\t{}",
+            root.id,
+            root.language,
+            root.normalized,
+            meaning,
+            root.confidence.score(),
+            source
+        );
+    }
+}
+
+fn print_composition_table(composition: &origin_core::SemanticComposition) {
+    println!("candidate\t{}", composition.merge.merged());
+    println!(
+        "roots\t{} + {}",
+        composition.left_root_id, composition.right_root_id
+    );
+    println!("meaning\t{}", composition.meaning);
+    println!("overall_score\t{}", composition.analysis.overall_score);
+    println!("accepted\t{}", yes_no(composition.analysis.accepted));
+    for step in composition.merge.provenance_steps() {
+        println!("provenance\t{step}");
+    }
+    print_warnings(&composition.analysis.warnings);
 }
 
 fn print_check_table(report: &BrandReport) {
@@ -437,13 +629,13 @@ mod tests {
     #[test]
     fn count_parser_accepts_supported_bounds() {
         assert_eq!(parse_count("1"), Ok(1));
-        assert_eq!(parse_count("1000000"), Ok(1_000_000));
+        assert_eq!(parse_count("10000"), Ok(10_000));
     }
 
     #[test]
     fn count_parser_rejects_unsupported_values() {
         assert!(parse_count("0").is_err());
-        assert!(parse_count("1000001").is_err());
+        assert!(parse_count("10001").is_err());
         assert!(parse_count("not-a-number").is_err());
     }
 
@@ -475,6 +667,33 @@ mod tests {
                 reference,
                 ..
             } if candidate == "orign" && reference == "origin"
+        ));
+    }
+
+    #[test]
+    fn availability_command_parses_all_targets() {
+        let cli = Cli::try_parse_from(["origin", "availability", "qarvan", "--all"])
+            .expect("availability command should parse");
+
+        assert!(matches!(
+            cli.command,
+            Command::Availability(command) if command.name == "qarvan" && command.all
+        ));
+    }
+
+    #[test]
+    fn semantic_commands_parse() {
+        assert!(matches!(
+            Cli::try_parse_from(["origin", "roots"]),
+            Ok(Cli {
+                command: Command::Roots { .. }
+            })
+        ));
+        assert!(matches!(
+            Cli::try_parse_from(["origin", "compose", "latin-lux", "latin-via"]),
+            Ok(Cli {
+                command: Command::Compose { .. }
+            })
         ));
     }
 

@@ -1,7 +1,9 @@
 //! Core generation, phonotactic analysis and scoring primitives for ORIGIN.
 
 mod analysis;
+mod availability;
 mod candidate;
+mod design;
 mod evolution;
 mod fuzzy;
 mod language;
@@ -9,6 +11,7 @@ mod morphology;
 mod phonotactics;
 mod portfolio;
 mod rejection;
+mod semantic;
 mod similarity;
 mod trademark;
 
@@ -18,6 +21,9 @@ pub use candidate::{
     CANDIDATE_SCHEMA_VERSION, CandidateInvariantError, CandidateRecord, CandidateScores,
     GenerationMode, RejectionCode, RejectionReason, RootLanguage, RootProvenance,
     ValidationEvidence, ValidationStatus,
+};
+pub use design::{
+    DesignOptions, DesignStrategy, DesignedCandidate, MAX_DESIGN_CANDIDATES, design_brands,
 };
 
 pub use language::{
@@ -42,6 +48,11 @@ pub use analysis::{
     BrandReport, INTERNATIONAL_TECH_V1, LanguageProfile, ScoreBreakdown, analyze_brand,
     analyze_brand_with_policy, analyze_brand_with_profile,
 };
+pub use availability::{
+    AvailabilityCache, AvailabilityChecker, AvailabilityError, AvailabilityProvider,
+    AvailabilityReport, AvailabilityResult, AvailabilityStatus, AvailabilityTarget, CacheKey,
+    MockAvailabilityProvider,
+};
 pub use evolution::{
     BeamCandidate, BeamSearchOptions, BeamSearchReport, ImproveOptions, ImprovementCandidate,
     ImprovementReport, MutationKind, MutationStep, beam_search, improve,
@@ -53,6 +64,9 @@ pub use portfolio::{
     build_portfolio, famous_mark_context,
 };
 pub use rejection::{RejectReason, RejectionPolicy, RejectionResult, evaluate_rejection};
+pub use semantic::{
+    SemanticComposition, SemanticError, built_in_catalog, compose, compose_builtin,
+};
 pub use similarity::{
     Analyzer, SimilarityAnalyzer, SimilarityReport, SimilarityRisk, SimilarityWeights,
     analyze_similarity, analyze_similarity_with_weights,
