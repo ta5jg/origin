@@ -354,9 +354,10 @@ fn run_generate(
     };
     let candidates = design_brands(&options);
     if let Some(finalists) = finalists {
+        let screening_budget = finalists.saturating_mul(3);
         let reports = candidates
             .into_iter()
-            .take(finalists)
+            .take(screening_budget)
             .map(|candidate| {
                 commands::availability::live_report(&candidate.name).map(|availability| {
                     FinalistReport {
@@ -367,10 +368,17 @@ fn run_generate(
             })
             .collect::<Result<Vec<_>, _>>();
         match reports {
-            Ok(reports) => match format {
-                OutputFormat::Table => print_finalist_table(&reports),
-                OutputFormat::Json => print_json(&reports),
-            },
+            Ok(reports) => {
+                let reports = reports
+                    .into_iter()
+                    .filter(|report| report.availability.is_clear())
+                    .take(finalists)
+                    .collect::<Vec<_>>();
+                match format {
+                    OutputFormat::Table => print_finalist_table(&reports),
+                    OutputFormat::Json => print_json(&reports),
+                }
+            }
             Err(error) => {
                 eprintln!("finalist clearance failed: {error}");
                 std::process::exit(2);

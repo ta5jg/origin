@@ -58,6 +58,7 @@ impl std::error::Error for SemanticError {}
 /// Panics only if a hard-coded built-in record violates the catalog contract;
 /// this is guarded by the module's catalog test.
 #[must_use]
+#[allow(clippy::too_many_lines)] // The reviewed built-in dataset is intentionally local and auditable.
 pub fn built_in_catalog() -> LanguageCatalog {
     LanguageCatalog::from_roots([
         latin_root("latin-lux", "lūx", "lux", "light", MeaningCategory::Light),
@@ -94,6 +95,237 @@ pub fn built_in_catalog() -> LanguageCatalog {
             MeaningCategory::Connection,
         ),
         latin_root("latin-nov", "novus", "nov", "new", MeaningCategory::Origin),
+        historical_root(
+            "sumerian-eme",
+            LanguageId::Sumerian,
+            "eme",
+            "eme",
+            "language",
+            MeaningCategory::Connection,
+            "epsd",
+            "Electronic Pennsylvania Sumerian Dictionary",
+            "ePSD",
+        ),
+        historical_root(
+            "sumerian-dub",
+            LanguageId::Sumerian,
+            "dub",
+            "dub",
+            "record",
+            MeaningCategory::Intelligence,
+            "epsd",
+            "Electronic Pennsylvania Sumerian Dictionary",
+            "ePSD",
+        ),
+        historical_root(
+            "sumerian-lugal",
+            LanguageId::Sumerian,
+            "lugal",
+            "lugal",
+            "king",
+            MeaningCategory::Strength,
+            "epsd",
+            "Electronic Pennsylvania Sumerian Dictionary",
+            "ePSD",
+        ),
+        historical_root(
+            "sumerian-uru",
+            LanguageId::Sumerian,
+            "uru",
+            "uru",
+            "city",
+            MeaningCategory::Place,
+            "epsd",
+            "Electronic Pennsylvania Sumerian Dictionary",
+            "ePSD",
+        ),
+        historical_root(
+            "sumerian-edin",
+            LanguageId::Sumerian,
+            "edin",
+            "edin",
+            "plain",
+            MeaningCategory::Place,
+            "epsd",
+            "Electronic Pennsylvania Sumerian Dictionary",
+            "ePSD",
+        ),
+        historical_root(
+            "akkadian-sarru",
+            LanguageId::Akkadian,
+            "šarru",
+            "sarru",
+            "king",
+            MeaningCategory::Strength,
+            "cda",
+            "A Concise Dictionary of Akkadian",
+            "Black, George, and Postgate (2000)",
+        ),
+        historical_root(
+            "akkadian-babu",
+            LanguageId::Akkadian,
+            "bābu",
+            "babu",
+            "gate",
+            MeaningCategory::Connection,
+            "cda",
+            "A Concise Dictionary of Akkadian",
+            "Black, George, and Postgate (2000)",
+        ),
+        historical_root(
+            "akkadian-naru",
+            LanguageId::Akkadian,
+            "nāru",
+            "naru",
+            "river",
+            MeaningCategory::Movement,
+            "cda",
+            "A Concise Dictionary of Akkadian",
+            "Black, George, and Postgate (2000)",
+        ),
+        historical_root(
+            "old-turkic-kut",
+            LanguageId::OldTurkic,
+            "kut",
+            "kut",
+            "fortune",
+            MeaningCategory::Trust,
+            "clauson",
+            "An Etymological Dictionary of Pre-Thirteenth-Century Turkish",
+            "Clauson (1972)",
+        ),
+        historical_root(
+            "old-turkic-il",
+            LanguageId::OldTurkic,
+            "il",
+            "il",
+            "realm",
+            MeaningCategory::Place,
+            "clauson",
+            "An Etymological Dictionary of Pre-Thirteenth-Century Turkish",
+            "Clauson (1972)",
+        ),
+        historical_root(
+            "old-turkic-yurt",
+            LanguageId::OldTurkic,
+            "yurt",
+            "yurt",
+            "homeland",
+            MeaningCategory::Place,
+            "clauson",
+            "An Etymological Dictionary of Pre-Thirteenth-Century Turkish",
+            "Clauson (1972)",
+        ),
+        historical_root(
+            "old-turkic-orun",
+            LanguageId::OldTurkic,
+            "orun",
+            "orun",
+            "place",
+            MeaningCategory::Place,
+            "clauson",
+            "An Etymological Dictionary of Pre-Thirteenth-Century Turkish",
+            "Clauson (1972)",
+        ),
+        historical_root(
+            "old-turkic-yol",
+            LanguageId::OldTurkic,
+            "yol",
+            "yol",
+            "path",
+            MeaningCategory::Movement,
+            "clauson",
+            "An Etymological Dictionary of Pre-Thirteenth-Century Turkish",
+            "Clauson (1972)",
+        ),
+        historical_root(
+            "old-turkic-yel",
+            LanguageId::OldTurkic,
+            "yel",
+            "yel",
+            "wind",
+            MeaningCategory::Movement,
+            "clauson",
+            "An Etymological Dictionary of Pre-Thirteenth-Century Turkish",
+            "Clauson (1972)",
+        ),
+        historical_root(
+            "old-turkic-alp",
+            LanguageId::OldTurkic,
+            "alp",
+            "alp",
+            "hero",
+            MeaningCategory::Strength,
+            "clauson",
+            "An Etymological Dictionary of Pre-Thirteenth-Century Turkish",
+            "Clauson (1972)",
+        ),
+        historical_root(
+            "old-turkic-erk",
+            LanguageId::OldTurkic,
+            "erk",
+            "erk",
+            "power",
+            MeaningCategory::Strength,
+            "clauson",
+            "An Etymological Dictionary of Pre-Thirteenth-Century Turkish",
+            "Clauson (1972)",
+        ),
+        historical_root(
+            "sanskrit-dhara",
+            LanguageId::Sanskrit,
+            "dhārā",
+            "dhara",
+            "stream",
+            MeaningCategory::Movement,
+            "monier-williams",
+            "A Sanskrit-English Dictionary",
+            "Monier-Williams (1899)",
+        ),
+        historical_root(
+            "sanskrit-artha",
+            LanguageId::Sanskrit,
+            "artha",
+            "artha",
+            "purpose",
+            MeaningCategory::Commerce,
+            "monier-williams",
+            "A Sanskrit-English Dictionary",
+            "Monier-Williams (1899)",
+        ),
+        historical_root(
+            "sanskrit-veda",
+            LanguageId::Sanskrit,
+            "veda",
+            "veda",
+            "knowledge",
+            MeaningCategory::Intelligence,
+            "monier-williams",
+            "A Sanskrit-English Dictionary",
+            "Monier-Williams (1899)",
+        ),
+        historical_root(
+            "sanskrit-yatra",
+            LanguageId::Sanskrit,
+            "yātrā",
+            "yatra",
+            "journey",
+            MeaningCategory::Movement,
+            "monier-williams",
+            "A Sanskrit-English Dictionary",
+            "Monier-Williams (1899)",
+        ),
+        historical_root(
+            "sanskrit-sutra",
+            LanguageId::Sanskrit,
+            "sūtra",
+            "sutra",
+            "thread",
+            MeaningCategory::Connection,
+            "monier-williams",
+            "A Sanskrit-English Dictionary",
+            "Monier-Williams (1899)",
+        ),
     ])
     .expect("the built-in semantic catalog must remain internally valid")
 }
@@ -167,6 +399,35 @@ fn latin_root(
     .with_tag(category.as_str())
 }
 
+#[allow(clippy::too_many_arguments)]
+fn historical_root(
+    id: &str,
+    language: LanguageId,
+    original: &str,
+    normalized: &str,
+    gloss: &str,
+    category: MeaningCategory,
+    source_id: &str,
+    source_title: &str,
+    reference: &str,
+) -> LanguageRoot {
+    LanguageRoot::new(
+        id,
+        language,
+        original,
+        normalized,
+        RootMeaning::literal(gloss).with_category(category),
+        RootConfidence::new(80, ConfidenceBasis::Attested),
+    )
+    .with_source(RootSource::new(
+        source_id,
+        source_title,
+        SourceKind::Lexicon,
+        reference,
+    ))
+    .with_tag(category.as_str())
+}
+
 fn primary_gloss(root: &LanguageRoot) -> &str {
     root.meanings
         .first()
@@ -181,7 +442,7 @@ mod tests {
     fn built_in_catalog_is_small_valid_and_attributable() {
         let catalog = built_in_catalog();
 
-        assert_eq!(catalog.len(), 10);
+        assert_eq!(catalog.len(), 31);
         assert!(catalog.iter().all(|root| !root.sources.is_empty()));
     }
 

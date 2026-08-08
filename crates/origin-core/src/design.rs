@@ -155,14 +155,23 @@ fn selected_root_ids(options: &DesignOptions) -> Vec<String> {
 
 fn roots_for_signal(signal: &str) -> &'static [&'static str] {
     match signal {
-        "future" | "new" | "next" => &["latin-nov", "latin-lux"],
-        "light" | "vision" | "clarity" => &["latin-lux", "latin-ver"],
-        "trust" | "truth" | "secure" | "security" => &["latin-ver", "latin-fort"],
-        "space" | "world" | "civilization" | "planet" => &["latin-terra", "latin-loc", "latin-nov"],
-        "mind" | "intelligence" | "ai" => &["latin-nex", "latin-lux", "latin-ver"],
-        "network" | "connection" | "distributed" => &["latin-nex", "latin-via"],
-        "life" | "health" | "growth" => &["latin-vita", "latin-nov"],
-        "movement" | "travel" | "logistics" | "flow" => &["latin-via", "latin-temp"],
+        "future" | "new" | "next" => &["latin-nov", "latin-lux", "sanskrit-veda"],
+        "light" | "vision" | "clarity" => &["latin-lux", "latin-ver", "sumerian-eme"],
+        "trust" | "truth" | "secure" | "security" => &["latin-ver", "latin-fort", "old-turkic-kut"],
+        "space" | "world" | "civilization" | "planet" => {
+            &["latin-terra", "latin-loc", "sumerian-uru", "sumerian-edin"]
+        }
+        "mind" | "intelligence" | "ai" => &["latin-nex", "latin-lux", "sanskrit-veda"],
+        "network" | "connection" | "distributed" => {
+            &["latin-nex", "latin-via", "sanskrit-sutra", "akkadian-babu"]
+        }
+        "life" | "health" | "growth" => &["latin-vita", "latin-nov", "sanskrit-dhara"],
+        "movement" | "travel" | "logistics" | "flow" => &[
+            "latin-via",
+            "latin-temp",
+            "old-turkic-yol",
+            "sanskrit-yatra",
+        ],
         _ => &[],
     }
 }
