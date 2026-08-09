@@ -19,7 +19,7 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Screen a candidate against supported registries without direct network access.
+    /// Screen a candidate against supported public registries with evidence.
     Availability(commands::availability::AvailabilityCommand),
 
     /// List the source-backed semantic roots available to the built-in composer.

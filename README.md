@@ -1,4 +1,4 @@
-# Origin
+# Origin 1.0
 
 > **A deterministic, explainable, and production-oriented brand name discovery engine written in Rust.**
 
@@ -320,6 +320,7 @@ Current project status:
 - Comprehensive unit tests
 - Zero Clippy warnings
 - Fully formatted (`cargo fmt`)
+- Release-gated v1.0 candidate and finalist workflow
 
 ---
 
