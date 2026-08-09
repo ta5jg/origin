@@ -9,6 +9,13 @@ use crate::{BrandReport, analyze_brand, built_in_catalog, merge_roots};
 /// Maximum candidate count for one name-design run.
 pub const MAX_DESIGN_CANDIDATES: usize = 10_000;
 
+/// Lower-bound estimate of the synthetic two- and three-syllable design space.
+///
+/// This is a combinatorial construction space, not a checked-in list of brand
+/// names. A single run returns at most [`MAX_DESIGN_CANDIDATES`] ranked outputs
+/// from this substantially larger pool.
+pub const ESTIMATED_SYNTHETIC_DESIGN_SPACE: u64 = 294_521_850;
+
 /// Candidate-origin strategy used by the brand designer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -234,24 +241,38 @@ fn hybrid_name(seed: u64, index: usize, roots: &[String]) -> (String, DesignStra
 }
 
 fn invented_name(seed: u64, index: usize, google_style: bool) -> String {
-    const STARTS: &[&str] = &[
-        "av", "vel", "nor", "or", "zen", "tal", "kor", "vir", "lor", "qer", "xen", "rav", "syl",
-        "nuv", "mer", "var", "ser", "cal", "dar", "el", "fal", "gal", "hal", "jas", "kel", "lum",
-        "mir", "ren", "sol", "tor",
+    let syllable_count = if google_style || choose(seed, index + 31, 3) == 0 {
+        3
+    } else {
+        2
+    };
+    let mut name = String::with_capacity(8);
+    for syllable_index in 0..syllable_count {
+        name.push_str(&synthetic_syllable(
+            seed,
+            index,
+            syllable_index,
+            google_style,
+        ));
+    }
+    name
+}
+
+fn synthetic_syllable(seed: u64, index: usize, position: usize, google_style: bool) -> String {
+    const ONSETS: &[&str] = &[
+        "b", "c", "d", "f", "g", "h", "j", "k", "l", "m", "n", "p", "q", "r", "s", "t", "v", "x",
+        "z",
     ];
-    const MIDDLES: &[&str] = &[
-        "a", "e", "i", "o", "ar", "er", "or", "en", "al", "el", "il", "an", "in", "av", "ev", "iv",
-        "on",
-    ];
-    const BRIDGES: &[&str] = &["", "a", "e", "i", "o", "n", "r", "v", "l", "m"];
-    const ENDS: &[&str] = &["on", "or", "an", "en", "ar", "ia", "io", "um", "el", "is"];
-    const GOOGLE_ENDS: &[&str] = &["on", "or", "an", "en", "ar", "io", "um", "el"];
-    let start = STARTS[choose(seed, index, STARTS.len())];
-    let middle = MIDDLES[choose(seed, index + 11, MIDDLES.len())];
-    let bridge = BRIDGES[choose(seed, index + 19, BRIDGES.len())];
-    let ends = if google_style { GOOGLE_ENDS } else { ENDS };
-    let end = ends[choose(seed, index + 29, ends.len())];
-    format!("{start}{middle}{bridge}{end}")
+    const VOWELS: &[&str] = &["a", "e", "i", "o", "u"];
+    const CODAS: &[&str] = &["", "n", "r", "l", "m", "v", "s"];
+    const GOOGLE_CODAS: &[&str] = &["", "n", "r", "l", "m"];
+
+    let offset = position.saturating_mul(41);
+    let onset = ONSETS[choose(seed, index + offset, ONSETS.len())];
+    let vowel = VOWELS[choose(seed, index + offset + 11, VOWELS.len())];
+    let codas = if google_style { GOOGLE_CODAS } else { CODAS };
+    let coda = codas[choose(seed, index + offset + 23, codas.len())];
+    format!("{onset}{vowel}{coda}")
 }
 
 fn inspired_stem(form: &str, seed: u64, index: usize) -> String {

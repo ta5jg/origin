@@ -369,13 +369,20 @@ produces explicit `Unknown` fixture results without network traffic, and
 
 Origin separates raw generation from recommendation:
 
-1. The engine may design up to 10,000 candidates and rank them using local
+1. The engine composes candidates from a combinatorial phonetic space larger
+   than 294 million two- and three-syllable constructions; it is not a static
+   list of 1,000 or 10,000 stored names. A run may return up to 10,000 ranked
+   outputs from that larger space.
+2. Historical roots and meaning signals are transformed into inspiration
+   fragments, then combined with synthetic phonetic material; a root need not
+   be emitted as a literal candidate word.
+3. The engine ranks raw candidates using local
    linguistic, typographic, semantic, and brand-quality signals.
-2. The top bounded screening pool is then checked on **every** standard
+4. The top bounded screening pool is then checked on **every** standard
    availability target.
-3. Only candidates with complete availability reports can appear in finalist
+5. Only candidates with complete availability reports can appear in finalist
    output. Candidates with any `Taken` result are excluded.
-4. Remaining candidates are ranked by 65% design quality and 35% positive
+6. Remaining candidates are ranked by 65% design quality and 35% positive
    availability-evidence coverage.
 
 `origin generate --finalists N` fully screens three candidates per requested

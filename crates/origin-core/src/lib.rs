@@ -23,7 +23,8 @@ pub use candidate::{
     ValidationEvidence, ValidationStatus,
 };
 pub use design::{
-    DesignOptions, DesignStrategy, DesignedCandidate, MAX_DESIGN_CANDIDATES, design_brands,
+    DesignOptions, DesignStrategy, DesignedCandidate, ESTIMATED_SYNTHETIC_DESIGN_SPACE,
+    MAX_DESIGN_CANDIDATES, design_brands,
 };
 
 pub use language::{

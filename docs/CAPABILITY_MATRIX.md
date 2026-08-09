@@ -17,7 +17,7 @@
 
 | Capability | v1 behavior | Evidence/output | Boundary |
 | --- | --- | --- | --- |
-| Candidate design | Up to 10,000 deterministic candidates from invented, ancient-inspired, hybrid, and meaning-free strategies. | Name, strategy, inspiration, quality scores. | Raw candidates are exploration, not recommendations. |
+| Candidate design | Runtime composition from a >294 million synthetic syllable space; each run returns up to 10,000 invented, ancient-inspired, hybrid, and meaning-free candidates. | Name, strategy, inspiration, quality scores. | Raw candidates are exploration, not recommendations. |
 | Linguistic quality | Scores phonotactics, spelling, rhythm, memorability, and typographic balance. | Explainable `BrandReport`. | It cannot prove cultural, linguistic, or commercial suitability. |
 | Semantic roots | Curated, attributed roots from the included catalog. | Root ID, source title, confidence, gloss. | The catalog is intentionally small and not a complete historical dictionary. |
 | Similarity and trademark risk | Deterministic comparison against supplied references. | Risk factors and recommendation. | It is not a jurisdictional trademark search or legal opinion. |

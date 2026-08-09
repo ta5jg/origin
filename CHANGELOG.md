@@ -2,6 +2,17 @@
 
 All notable changes to Origin are documented in this file.
 
+## Unreleased — 1.1.0-alpha.1
+
+### Changed
+
+- Replaced the small synthetic name-fragment list with a compositional phonetic
+  space of more than 294 million two- and three-syllable constructions.
+- Kept the 10,000-candidate CLI ceiling as an output limit only; it is no
+  longer described or implemented as the candidate-pool size.
+- Historical roots remain inspiration inputs and are transformed before use in
+  ancient-inspired and hybrid candidate construction.
+
 ## 1.0.0 — 2026-08-09
 
 ### Added

@@ -41,6 +41,13 @@ No AI hallucinations.
 
 Fully reproducible results.
 
+The `--count` limit (up to 10,000) is an output limit, not the size of a
+prewritten name list. Synthetic candidates are composed at runtime from
+phonetic onset, vowel, and coda units across a design space of more than 294
+million two- and three-syllable combinations. Historical roots are also
+transformed into inspiration fragments and can be recombined; Origin does not
+need to use a stored word as a candidate name.
+
 ---
 
 ### Unicode-Aware Normalization
