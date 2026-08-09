@@ -53,6 +53,24 @@ pub trait AvailabilityProvider {
         self.check(&AvailabilityTarget::PyPi, name)
     }
 
+    /// Searches the configured company-register source for an exact-name conflict.
+    ///
+    /// # Errors
+    ///
+    /// Propagates a provider lookup failure.
+    fn company(&self, name: &str) -> Result<AvailabilityResult, AvailabilityError> {
+        self.check(&AvailabilityTarget::Company, name)
+    }
+
+    /// Searches the configured public web-presence source for an exact-name conflict.
+    ///
+    /// # Errors
+    ///
+    /// Propagates a provider lookup failure.
+    fn web(&self, name: &str) -> Result<AvailabilityResult, AvailabilityError> {
+        self.check(&AvailabilityTarget::Web, name)
+    }
+
     /// Checks a domain under the supplied top-level domain.
     ///
     /// # Errors

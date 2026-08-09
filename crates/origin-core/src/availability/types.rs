@@ -11,6 +11,10 @@ pub enum AvailabilityTarget {
     Npm,
     /// The Python Package Index package registry.
     PyPi,
+    /// Open company-register search for exact-name conflicts.
+    Company,
+    /// Public encyclopedic web-presence search for exact-name conflicts.
+    Web,
     /// A domain name under the supplied top-level domain.
     Domain {
         /// Top-level domain without a leading dot, for example `com`.
@@ -27,6 +31,8 @@ impl AvailabilityTarget {
             Self::CratesIo => "crates.io".into(),
             Self::Npm => "npm".into(),
             Self::PyPi => "pypi".into(),
+            Self::Company => "company".into(),
+            Self::Web => "web".into(),
             Self::Domain { tld } => format!("domain.{tld}"),
         }
     }

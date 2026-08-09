@@ -96,6 +96,14 @@ mod tests {
             AvailabilityTarget::PyPi
         );
         assert_eq!(
+            provider.company("qarvan").expect("company mock").target,
+            AvailabilityTarget::Company
+        );
+        assert_eq!(
+            provider.web("qarvan").expect("web mock").target,
+            AvailabilityTarget::Web
+        );
+        assert_eq!(
             provider
                 .domain("qarvan", "COM")
                 .expect("domain mock")

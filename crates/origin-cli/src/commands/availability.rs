@@ -24,6 +24,8 @@ fn default_targets() -> Vec<AvailabilityTarget> {
         AvailabilityTarget::CratesIo,
         AvailabilityTarget::Npm,
         AvailabilityTarget::PyPi,
+        AvailabilityTarget::Company,
+        AvailabilityTarget::Web,
     ];
     targets.extend(DEFAULT_DOMAIN_TLDS.map(|tld| AvailabilityTarget::Domain { tld: tld.into() }));
     targets
@@ -62,6 +64,10 @@ pub enum CliAvailabilityTarget {
     Npm,
     /// `PyPI` package availability.
     Pypi,
+    /// Exact-name company-register search.
+    Company,
+    /// Exact-name public web-presence search.
+    Web,
 }
 
 impl From<CliAvailabilityTarget> for AvailabilityTarget {
@@ -71,6 +77,8 @@ impl From<CliAvailabilityTarget> for AvailabilityTarget {
             CliAvailabilityTarget::Crates => Self::CratesIo,
             CliAvailabilityTarget::Npm => Self::Npm,
             CliAvailabilityTarget::Pypi => Self::PyPi,
+            CliAvailabilityTarget::Company => Self::Company,
+            CliAvailabilityTarget::Web => Self::Web,
         }
     }
 }
@@ -160,10 +168,12 @@ mod tests {
         .run()
         .expect("offline scaffold should run");
 
-        assert_eq!(report.results.len(), 12);
+        assert_eq!(report.results.len(), 14);
         assert_eq!(report.results[3].target.code(), "pypi");
-        assert_eq!(report.results[4].target.code(), "domain.com");
-        assert_eq!(report.results[11].target.code(), "domain.co");
+        assert_eq!(report.results[4].target.code(), "company");
+        assert_eq!(report.results[5].target.code(), "web");
+        assert_eq!(report.results[6].target.code(), "domain.com");
+        assert_eq!(report.results[13].target.code(), "domain.co");
     }
 
     #[test]
@@ -196,6 +206,6 @@ mod tests {
         .run()
         .expect("offline scaffold should run");
 
-        assert_eq!(report.results.len(), 12);
+        assert_eq!(report.results.len(), 14);
     }
 }
