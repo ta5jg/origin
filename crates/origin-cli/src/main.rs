@@ -68,6 +68,11 @@ enum Command {
         #[arg(long, value_parser = parse_finalist_count)]
         finalists: Option<usize>,
 
+        /// Number of internally ranked candidates to fully screen before finalist ranking.
+        /// Every candidate in this pool is checked against every standard target.
+        #[arg(long, value_parser = parse_screening_count)]
+        screen_limit: Option<usize>,
+
         /// Output representation.
         #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
         format: OutputFormat,
@@ -207,6 +212,10 @@ fn parse_finalist_count(value: &str) -> Result<usize, String> {
     parse_bounded_count(value, 10, "finalist")
 }
 
+fn parse_screening_count(value: &str) -> Result<usize, String> {
+    parse_bounded_count(value, 100, "screening")
+}
+
 fn parse_beam_width(value: &str) -> Result<usize, String> {
     parse_bounded_count(value, 250, "beam width")
 }
@@ -227,6 +236,7 @@ fn parse_bounded_count(value: &str, maximum: usize, label: &str) -> Result<usize
     }
 }
 
+#[allow(clippy::too_many_lines)] // Command dispatch remains intentionally visible in one place.
 fn main() {
     let cli = Cli::parse();
 
@@ -245,8 +255,18 @@ fn main() {
             roots,
             industry,
             finalists,
+            screen_limit,
             format,
-        } => run_generate(count, seed, meaning, roots, industry, finalists, format),
+        } => run_generate(
+            count,
+            seed,
+            meaning,
+            roots,
+            industry,
+            finalists,
+            screen_limit,
+            format,
+        ),
         Command::Check { name, format } => {
             let report = analyze_brand(&name);
             match format {
@@ -336,6 +356,7 @@ fn run_availability(command: commands::availability::AvailabilityCommand) {
     }
 }
 
+#[allow(clippy::too_many_arguments)] // Mirrors the explicit CLI generate arguments.
 fn run_generate(
     count: usize,
     seed: u64,
@@ -343,6 +364,7 @@ fn run_generate(
     roots: Vec<String>,
     industry: Option<String>,
     finalists: Option<usize>,
+    screen_limit: Option<usize>,
     format: OutputFormat,
 ) {
     let options = DesignOptions {
@@ -354,7 +376,11 @@ fn run_generate(
     };
     let candidates = design_brands(&options);
     if let Some(finalists) = finalists {
-        let screening_budget = finalists.saturating_mul(3);
+        let generated_candidates = candidates.len();
+        let screening_budget = screen_limit
+            .unwrap_or_else(|| finalists.saturating_mul(3))
+            .max(finalists)
+            .min(candidates.len());
         let reports = candidates
             .into_iter()
             .take(screening_budget)
@@ -368,15 +394,24 @@ fn run_generate(
             })
             .collect::<Result<Vec<_>, _>>();
         match reports {
-            Ok(reports) => {
-                let reports = reports
-                    .into_iter()
-                    .filter(|report| report.availability.is_clear())
+            Ok(mut reports) => {
+                reports.sort_by(|left, right| {
+                    right
+                        .recommendation_rank()
+                        .cmp(&left.recommendation_rank())
+                        .then_with(|| right.final_score().cmp(&left.final_score()))
+                        .then_with(|| left.candidate.name.cmp(&right.candidate.name))
+                });
+                let finalists = reports
+                    .iter()
+                    .filter(|report| !report.is_rejected())
                     .take(finalists)
+                    .cloned()
                     .collect::<Vec<_>>();
+                let run = FinalistRun::from_reports(generated_candidates, finalists, reports);
                 match format {
-                    OutputFormat::Table => print_finalist_table(&reports),
-                    OutputFormat::Json => print_json(&reports),
+                    OutputFormat::Table => print_finalist_table(&run),
+                    OutputFormat::Json => print_json(&run),
                 }
             }
             Err(error) => {
@@ -392,10 +427,73 @@ fn run_generate(
     }
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 struct FinalistReport {
     candidate: DesignedCandidate,
     availability: origin_core::AvailabilityReport,
+}
+
+#[derive(Debug, serde::Serialize)]
+struct FinalistRun {
+    generated_candidates: usize,
+    screened_candidates: usize,
+    clear_count: usize,
+    provisional_count: usize,
+    rejected_count: usize,
+    finalists: Vec<FinalistReport>,
+    screened_reports: Vec<FinalistReport>,
+}
+
+impl FinalistRun {
+    fn from_reports(
+        generated_candidates: usize,
+        finalists: Vec<FinalistReport>,
+        screened_reports: Vec<FinalistReport>,
+    ) -> Self {
+        let clear_count = screened_reports
+            .iter()
+            .filter(|report| {
+                report.availability.recommendation() == origin_core::ClearanceRecommendation::Clear
+            })
+            .count();
+        let provisional_count = screened_reports
+            .iter()
+            .filter(|report| {
+                report.availability.recommendation()
+                    == origin_core::ClearanceRecommendation::Provisional
+            })
+            .count();
+        let rejected_count = screened_reports.len() - clear_count - provisional_count;
+        Self {
+            generated_candidates,
+            screened_candidates: screened_reports.len(),
+            clear_count,
+            provisional_count,
+            rejected_count,
+            finalists,
+            screened_reports,
+        }
+    }
+}
+
+impl FinalistReport {
+    fn recommendation_rank(&self) -> u8 {
+        match self.availability.recommendation() {
+            origin_core::ClearanceRecommendation::Clear => 2,
+            origin_core::ClearanceRecommendation::Provisional => 1,
+            origin_core::ClearanceRecommendation::Reject => 0,
+        }
+    }
+
+    fn is_rejected(&self) -> bool {
+        self.availability.recommendation() == origin_core::ClearanceRecommendation::Reject
+    }
+
+    fn final_score(&self) -> u8 {
+        let design = u16::from(self.candidate.design_score);
+        let evidence = u16::from(self.availability.evidence_score());
+        u8::try_from((design * 65 + evidence * 35) / 100).unwrap_or(100)
+    }
 }
 
 fn print_roots(format: OutputFormat) {
@@ -436,23 +534,27 @@ fn print_designed_candidates_table(candidates: &[DesignedCandidate]) {
     }
 }
 
-fn print_finalist_table(reports: &[FinalistReport]) {
-    println!("rank\tdesign\tstrategy\tclear\ttaken\tunknown\tname");
-    for (index, report) in reports.iter().enumerate() {
-        let unknown = report
-            .availability
-            .results
-            .iter()
-            .filter(|result| result.status == origin_core::AvailabilityStatus::Unknown)
-            .count();
+fn print_finalist_table(run: &FinalistRun) {
+    println!(
+        "generated\t{}\tscreened\t{}\tclear\t{}\tprovisional\t{}\trejected\t{}",
+        run.generated_candidates,
+        run.screened_candidates,
+        run.clear_count,
+        run.provisional_count,
+        run.rejected_count
+    );
+    println!("rank\tfinal\tdesign\tevidence\trecommendation\tstrategy\ttaken\tunknown\tname");
+    for (index, report) in run.finalists.iter().enumerate() {
         println!(
-            "{}\t{}\t{:?}\t{}\t{}\t{}\t{}",
+            "{}\t{}\t{}\t{}\t{:?}\t{:?}\t{}\t{}\t{}",
             index + 1,
+            report.final_score(),
             report.candidate.design_score,
+            report.availability.evidence_score(),
+            report.availability.recommendation(),
             report.candidate.strategy,
-            yes_no(report.availability.is_clear()),
             report.availability.taken_count(),
-            unknown,
+            report.availability.unknown_count(),
             report.candidate.name
         );
     }

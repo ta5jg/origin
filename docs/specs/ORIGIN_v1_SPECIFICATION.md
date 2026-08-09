@@ -359,9 +359,40 @@ Availability commands:
 origin availability
 ```
 
-`origin availability <name> --all` checks public registries and the standard
-domain TLD set. `--offline` produces explicit `Unknown` fixture results without
-network traffic, and `--json <path>` writes the evidence report.
+`origin availability <name> --all` checks GitHub, crates.io, npm, PyPI,
+exact-name company and public-web search sources, and the standard domain TLD
+set (`.com`, `.net`, `.org`, `.io`, `.ai`, `.app`, `.dev`, `.co`). `--offline`
+produces explicit `Unknown` fixture results without network traffic, and
+`--json <path>` writes the evidence report.
+
+### 14.1 Candidate-to-finalist contract
+
+Origin separates raw generation from recommendation:
+
+1. The engine may design up to 10,000 candidates and rank them using local
+   linguistic, typographic, semantic, and brand-quality signals.
+2. The top bounded screening pool is then checked on **every** standard
+   availability target.
+3. Only candidates with complete availability reports can appear in finalist
+   output. Candidates with any `Taken` result are excluded.
+4. Remaining candidates are ranked by 65% design quality and 35% positive
+   availability-evidence coverage.
+
+`origin generate --finalists N` fully screens three candidates per requested
+finalist by default; `--screen-limit M` makes that budget explicit. This limit
+exists to respect public-source latency and rate limits. It never weakens the
+per-finalist rule: every candidate shown in the recommendation list has all
+standard checks. JSON output retains the evidence reports for the entire
+screening pool, including rejected candidates, for auditability.
+
+Availability conclusions are conservative:
+
+- `Clear`: every target returned `Available`.
+- `Provisional`: no target returned `Taken`, but one or more returned `Unknown`.
+- `Reject`: at least one target returned `Taken`; it is not recommended.
+
+`Unknown` is not treated as availability. A fixed name such as `qarvan` may be
+used by automated tests as a smoke fixture, but it has no special product role.
 
 Semantic commands:
 

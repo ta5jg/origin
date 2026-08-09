@@ -51,7 +51,7 @@ pub use analysis::{
 pub use availability::{
     AvailabilityCache, AvailabilityChecker, AvailabilityError, AvailabilityProvider,
     AvailabilityReport, AvailabilityResult, AvailabilityStatus, AvailabilityTarget, CacheKey,
-    MockAvailabilityProvider,
+    ClearanceRecommendation, MockAvailabilityProvider,
 };
 pub use evolution::{
     BeamCandidate, BeamSearchOptions, BeamSearchReport, ImproveOptions, ImprovementCandidate,

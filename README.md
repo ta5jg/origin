@@ -160,17 +160,43 @@ screening outcomes while remaining explainable.
 
 ### Availability Screening
 
-Origin can check public GitHub namespaces, crates.io, npm, PyPI, and standard
-domain TLDs (`.com`, `.net`, `.org`, `.io`, `.ai`, `.app`, `.dev`, `.co`). Each
-online response includes its source URL and a Unix-millisecond evidence timestamp.
-An unavailable or failed source is reported as `Unknown`; it is never reported as
-available.
+Origin does not recommend a name because one development example was checked.
+The product pipeline is deliberately two-stage:
+
+1. It designs and locally ranks a large raw candidate set (up to 10,000).
+2. It fully screens every candidate in a bounded finalist pool against all
+   standard targets, then ranks only those evidence-backed reports.
+
+The raw set is internal exploration, not a recommendation. A candidate becomes
+recommendable only after its full report exists. The standard report includes
+GitHub, crates.io, npm, PyPI, exact-name company-register search, exact-name
+public-web search, and `.com`, `.net`, `.org`, `.io`, `.ai`, `.app`, `.dev`, and
+`.co` domain checks. Each online result contains its source and a
+Unix-millisecond evidence timestamp.
+
+`Available` contributes positive evidence; `Taken` rejects the candidate; and
+an unavailable source remains `Unknown`, never `Available`. The final score is
+65% design quality and 35% availability-evidence coverage. A finalist is:
+
+- `Clear` only when every requested source returned `Available`.
+- `Provisional` when no conflict was found but one or more sources are
+  `Unknown`.
+- omitted from recommendations when any source is `Taken`.
+
+The default finalist pool is three fully screened candidates per requested
+finalist; use `--screen-limit` to set it explicitly. This is a practical public
+API budget, while retaining the invariant that every displayed finalist received
+all checks. JSON output also retains reports for every screened candidate,
+including rejected ones, so the selection can be audited.
 
 ```bash
-origin availability qarvan --all
-origin availability qarvan --domain com --domain io --json qarvan-availability.json
-origin availability qarvan --all --offline
+origin generate --meaning "future civilization" --industry ai --count 10000 --finalists 10 --screen-limit 50
+origin generate --roots latin-via,old-turkic-kut --finalists 5 --format json
+origin availability candidate-name --all --json candidate-name-availability.json
 ```
+
+`qarvan` appears in tests only as a fixed fixture name; it is not a product
+recommendation or a special-case availability check.
 
 ---
 
@@ -214,10 +240,13 @@ The search engine prioritizes:
          Trademark Screening
                     │
                     ▼
-           Portfolio Ranking
+          Portfolio Ranking
                     │
                     ▼
-          Final Candidates
+      Full Availability Evidence
+                    │
+                    ▼
+       Scored Finalist Recommendations
 '''
 
 Every stage is deterministic.

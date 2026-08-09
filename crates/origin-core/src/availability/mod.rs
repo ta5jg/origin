@@ -12,7 +12,7 @@ pub use cache::{AvailabilityCache, CacheKey};
 pub use checker::AvailabilityChecker;
 pub use errors::AvailabilityError;
 pub use mock_provider::MockAvailabilityProvider;
-pub use report::AvailabilityReport;
+pub use report::{AvailabilityReport, ClearanceRecommendation};
 pub use traits::AvailabilityProvider;
 pub use types::{AvailabilityResult, AvailabilityStatus, AvailabilityTarget};
 
