@@ -31,7 +31,7 @@ fn default_targets() -> Vec<AvailabilityTarget> {
     targets
 }
 
-/// Offline availability screening command.
+/// Evidence-backed availability screening command with an explicit offline mode.
 #[derive(Debug, Args)]
 pub struct AvailabilityCommand {
     /// Candidate name to screen.

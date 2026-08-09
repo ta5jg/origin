@@ -98,7 +98,13 @@ pub fn design_brands(options: &DesignOptions) -> Vec<DesignedCandidate> {
         if !(5..=8).contains(&name.len()) || !unique.insert(name.clone()) {
             continue;
         }
+        if !is_phone_friendly(&name) {
+            continue;
+        }
         let analysis = analyze_brand(&name);
+        if !analysis.accepted {
+            continue;
+        }
         let typography_score = typography_score(&name);
         let design_score = weighted_score(&analysis, typography_score, strategy);
         candidates.push(DesignedCandidate {
@@ -187,9 +193,10 @@ fn ancient_inspired_name(
         .get(root)
         .expect("selected roots come from catalog")
         .normalized;
+    let stem = inspired_stem(form, seed, index);
     let suffix = ending(seed, index + 17);
     (
-        format!("{form}{suffix}"),
+        format!("{stem}{suffix}"),
         DesignStrategy::AncientInspired,
         vec![root.clone()],
     )
@@ -208,16 +215,16 @@ fn hybrid_name(seed: u64, index: usize, roots: &[String]) -> (String, DesignStra
         .expect("selected roots come from catalog")
         .normalized;
     let merged = merge_roots(left, right).unwrap_or_else(|_| format!("{left}{right}"));
-    let name = if merged.len() < 5 {
-        format!("{merged}{}", ending(seed, index + 107))
-    } else if merged.len() > 8 {
-        format!(
-            "{}{}",
-            &left[..left.len().min(5)],
-            ending(seed, index + 107)
-        )
+    let left_stem = inspired_stem(left, seed, index + 47);
+    let right_stem = inspired_stem(right, seed, index + 89);
+    let name = if merged.len() <= 5 {
+        format!("{left_stem}{}", ending(seed, index + 107))
     } else {
-        merged
+        format!(
+            "{left_stem}{}{}",
+            bridge_vowel(seed, index + 103),
+            right_stem
+        )
     };
     (
         name,
@@ -229,18 +236,69 @@ fn hybrid_name(seed: u64, index: usize, roots: &[String]) -> (String, DesignStra
 fn invented_name(seed: u64, index: usize, google_style: bool) -> String {
     const STARTS: &[&str] = &[
         "av", "vel", "nor", "or", "zen", "tal", "kor", "vir", "lor", "qer", "xen", "rav", "syl",
-        "nuv", "mer",
+        "nuv", "mer", "var", "ser", "cal", "dar", "el", "fal", "gal", "hal", "jas", "kel", "lum",
+        "mir", "ren", "sol", "tor",
     ];
-    const MIDDLES: &[&str] = &["a", "e", "i", "o", "ar", "er", "or", "en", "iv", "av"];
-    const BRIDGES: &[&str] = &["", "a", "e", "i", "o", "n", "r", "v"];
-    const ENDS: &[&str] = &["n", "r", "x", "on", "or", "ia", "iq", "ex", "en", "is"];
-    const GOOGLE_ENDS: &[&str] = &["on", "or", "ex", "iq", "io", "ar", "en", "um"];
+    const MIDDLES: &[&str] = &[
+        "a", "e", "i", "o", "ar", "er", "or", "en", "al", "el", "il", "an", "in", "av", "ev", "iv",
+        "on",
+    ];
+    const BRIDGES: &[&str] = &["", "a", "e", "i", "o", "n", "r", "v", "l", "m"];
+    const ENDS: &[&str] = &["on", "or", "an", "en", "ar", "ia", "io", "um", "el", "is"];
+    const GOOGLE_ENDS: &[&str] = &["on", "or", "an", "en", "ar", "io", "um", "el"];
     let start = STARTS[choose(seed, index, STARTS.len())];
     let middle = MIDDLES[choose(seed, index + 11, MIDDLES.len())];
     let bridge = BRIDGES[choose(seed, index + 19, BRIDGES.len())];
     let ends = if google_style { GOOGLE_ENDS } else { ENDS };
     let end = ends[choose(seed, index + 29, ends.len())];
     format!("{start}{middle}{bridge}{end}")
+}
+
+fn inspired_stem(form: &str, seed: u64, index: usize) -> String {
+    let take = match form.len() {
+        0..=3 => form.len(),
+        4 => 3,
+        _ => 3 + choose(seed, index, 2),
+    };
+    let mut stem = form[..take].to_owned();
+    if stem.ends_with(['a', 'e', 'i', 'o', 'u']) {
+        stem.pop();
+    }
+    if stem.len() < 2 {
+        stem.push('r');
+    }
+    stem
+}
+
+fn bridge_vowel(seed: u64, index: usize) -> char {
+    const VOWELS: [char; 5] = ['a', 'e', 'i', 'o', 'u'];
+    VOWELS[choose(seed, index, VOWELS.len())]
+}
+
+fn is_phone_friendly(name: &str) -> bool {
+    if name.ends_with(['q', 'x']) || name.contains("iq") {
+        return false;
+    }
+    let mut previous = None;
+    let mut vowel_run = 0;
+    let mut consonant_run = 0;
+    for byte in name.bytes() {
+        if Some(byte) == previous {
+            return false;
+        }
+        previous = Some(byte);
+        if b"aeiou".contains(&byte) {
+            vowel_run += 1;
+            consonant_run = 0;
+        } else {
+            consonant_run += 1;
+            vowel_run = 0;
+        }
+        if vowel_run >= 3 || consonant_run >= 3 {
+            return false;
+        }
+    }
+    true
 }
 
 fn ending(seed: u64, index: usize) -> &'static str {
@@ -308,6 +366,7 @@ mod tests {
                 .iter()
                 .all(|candidate| (5..=8).contains(&candidate.name.len()))
         );
+        assert!(first.iter().all(|candidate| candidate.analysis.accepted));
     }
 
     #[test]
@@ -348,5 +407,19 @@ mod tests {
         };
         let candidates = design_brands(&options);
         assert_eq!(candidates.len(), MAX_DESIGN_CANDIDATES);
+    }
+
+    #[test]
+    fn design_excludes_phone_unfriendly_spellings() {
+        let candidates = design_brands(&DesignOptions {
+            count: 500,
+            seed: 77,
+            ..Default::default()
+        });
+        assert!(
+            candidates
+                .iter()
+                .all(|candidate| super::is_phone_friendly(&candidate.name))
+        );
     }
 }
