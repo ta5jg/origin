@@ -209,7 +209,7 @@ fn parse_improvement_count(value: &str) -> Result<usize, String> {
 }
 
 fn parse_finalist_count(value: &str) -> Result<usize, String> {
-    parse_bounded_count(value, 10, "finalist")
+    parse_bounded_count(value, 20, "finalist")
 }
 
 fn parse_screening_count(value: &str) -> Result<usize, String> {
@@ -733,7 +733,7 @@ mod tests {
 
     use super::{
         Cli, CliMarkStrength, Command, parse_beam_width, parse_count, parse_depth,
-        parse_improvement_count,
+        parse_finalist_count, parse_improvement_count,
     };
 
     #[test]
@@ -755,6 +755,12 @@ mod tests {
         assert_eq!(parse_improvement_count("1000"), Ok(1_000));
         assert!(parse_improvement_count("0").is_err());
         assert!(parse_improvement_count("1001").is_err());
+    }
+
+    #[test]
+    fn finalist_count_supports_a_twenty_name_shortlist() {
+        assert_eq!(parse_finalist_count("20"), Ok(20));
+        assert!(parse_finalist_count("21").is_err());
     }
 
     #[test]

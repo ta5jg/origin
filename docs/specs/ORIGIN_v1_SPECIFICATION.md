@@ -386,7 +386,7 @@ Origin separates raw generation from recommendation:
    availability-evidence coverage.
 
 `origin generate --finalists N` fully screens three candidates per requested
-finalist by default; `--screen-limit M` makes that budget explicit. This limit
+finalist by default (with up to 20 finalists); `--screen-limit M` makes that budget explicit. This limit
 exists to respect public-source latency and rate limits. It never weakens the
 per-finalist rule: every candidate shown in the recommendation list has all
 standard checks. JSON output retains the evidence reports for the entire

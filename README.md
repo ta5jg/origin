@@ -191,7 +191,7 @@ an unavailable source remains `Unknown`, never `Available`. The final score is
 - omitted from recommendations when any source is `Taken`.
 
 The default finalist pool is three fully screened candidates per requested
-finalist; use `--screen-limit` to set it explicitly. This is a practical public
+finalist (up to 20 finalists); use `--screen-limit` to set it explicitly. This is a practical public
 API budget, while retaining the invariant that every displayed finalist received
 all checks. JSON output also retains reports for every screened candidate,
 including rejected ones, so the selection can be audited.
